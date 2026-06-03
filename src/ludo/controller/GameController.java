@@ -14,6 +14,8 @@ public class GameController {
 
     private boolean hasRolled = false;
     private int currentV1 = 0, currentV2 = 0;
+    private boolean v1Used = false;
+    private boolean v2Used = false;
     private List<Horse> highlightedHorses = new ArrayList<>();
     private List<String> rankings = new ArrayList<>(); // Thứ hạng người thắng
 
@@ -33,6 +35,7 @@ public class GameController {
         currentPlayerIndex = 0;
         hasRolled = false;
         currentV1 = 0; currentV2 = 0;
+        v1Used = false; v2Used = false;
         highlightedHorses.clear();
         rankings.clear();
     }
@@ -69,9 +72,13 @@ public class GameController {
         currentV2 = result[1];
         hasRolled = true;
 
+        v1Used = false; 
+        v2Used = false;
+        
         ui.updateDiceDisplay(currentV1, currentV2);
         ui.showMessage(players[currentPlayerIndex].getName() + " đổ được " + currentV1 + " và " + currentV2 + " (tổng: " + (currentV1 + currentV2) + ")");
-
+        // Gọi hàm kiểm tra cản đường
+        updateHighlightedHorses();
         // Tính ngựa hợp lệ và highlight
         highlightedHorses = players[currentPlayerIndex].getValidMoves(currentV1, currentV2);
         ui.renderBoard(board, players);
@@ -81,6 +88,43 @@ public class GameController {
             new javax.swing.Timer(1500, e -> {
                 ((javax.swing.Timer) e.getSource()).stop();
                 endTurn(false);
+            }).start();
+        }
+    }
+
+    private void updateHighlightedHorses() {
+        if (v1Used && v2Used) {
+            highlightedHorses.clear();
+        } else {
+            int v1 = v1Used ? 0 : currentV1;
+            int v2 = v2Used ? 0 : currentV2;
+            
+            // Lấy danh sách thô từ Player
+            List<Horse> rawList = players[currentPlayerIndex].getValidMoves(v1, v2);
+            highlightedHorses.clear();
+            
+            // UC5: Lọc lại danh sách, loại bỏ những con ngựa bị cản đường
+            for (Horse h : rawList) {
+                if (h.getState() == HorseState.IN_BASE || h.getState() == HorseState.IN_HOME) {
+                    highlightedHorses.add(h);
+                } else if (h.getState() == HorseState.ON_PATH) {
+                    // Chỉ highlight nếu ít nhất 1 trong các hướng đi không bị cản
+                    if ((v1 > 0 && canMove(h, v1)) || 
+                        (v2 > 0 && canMove(h, v2)) || 
+                        (v1 > 0 && v2 > 0 && canMove(h, v1 + v2))) {
+                        highlightedHorses.add(h);
+                    }
+                }
+            }
+        }
+        
+        ui.renderBoard(board, players);
+
+        if (highlightedHorses.isEmpty()) {
+            ui.showMessage("Không có nước đi (hoặc bị cản đường)! Mất lượt.");
+            new javax.swing.Timer(1500, e -> {
+                ((javax.swing.Timer) e.getSource()).stop();
+                endTurn(false); // Bị chặn/không đi được thì mất quyền thưởng lượt
             }).start();
         }
     }
@@ -303,6 +347,7 @@ public class GameController {
         }
         return true;
     }
+    
 
     // Getters
     public Board getBoard() { return board; }
