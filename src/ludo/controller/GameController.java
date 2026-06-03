@@ -1,7 +1,7 @@
-package ludo.controllers;
+package ludo.controller;
 
-import ludo.models.*;
-import ludo.views.GameUI;
+import ludo.model.*;
+import ludo.view.GameUI;
 import java.util.ArrayList;
 import java.util.List;
 
