@@ -287,6 +287,23 @@ public class GameController {
         ui.showMessage("🎯 Lượt của: " + players[currentPlayerIndex].getName());
     }
 
+    // Helper: UC5 - Kiểm tra xem quãng đường di chuyển có bị ngựa khác cản không
+    private boolean canMove(Horse h, int steps) {
+        if (h.getDistanceTraveled() + steps > 55) return false; // Vượt quá cửa chuồng
+        
+        int startPos = h.getCurrentPosition();
+        if (startPos != -1) { // Ngựa đang trên đường
+            // Quét các ô từ ngay trước mặt đến sát ô đích
+            for (int i = 1; i < steps; i++) {
+                int checkPos = (startPos + i) % 56;
+                if (board.getHorseAt(checkPos) != null) {
+                    return false; // Bị cản đường bởi một quân ngựa khác
+                }
+            }
+        }
+        return true;
+    }
+
     // Getters
     public Board getBoard() { return board; }
     public Player[] getPlayers() { return players; }
