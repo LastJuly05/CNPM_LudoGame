@@ -136,6 +136,7 @@ public class GameController {
         h.setDistanceTraveled(0);
         board.setHorseAt(pos, h);
         endTurn(dice.isDouble());
+        endTurn(dice.isDeployable());
     }
 
     private void moveHorseOnPath(Horse h, int steps) {
@@ -148,7 +149,7 @@ public class GameController {
             h.setDistanceTraveled(55);
             h.setState(HorseState.IN_HOME);
             h.setHomeStep(0);
-            endTurn(dice.isDouble());
+            endTurn(dice.isDeployable()); 
             return;
         }
 
@@ -169,7 +170,7 @@ public class GameController {
         h.setCurrentPosition(newPos);
         h.setDistanceTraveled(newDist);
         board.setHorseAt(newPos, h);
-        endTurn(dice.isDouble());
+        endTurn(dice.isDeployable());
     }
 
     private void tryClimbHome(Horse h) {
@@ -182,13 +183,14 @@ public class GameController {
                 h.setState(HorseState.FINISHED);
                 ui.showMessage("🎉 Quân cờ đã về đích HOÀN THÀNH!");
             }
+            
             if (players[currentPlayerIndex].hasWon()) {
                 boolean isGameOver = checkWinCondition();
                 if (!isGameOver) {
-                    endTurn(false);
+                    endTurn(false); 
                 }
             } else {
-                endTurn(dice.isDouble());
+                endTurn(dice.isDeployable());
             }
         }
     }
@@ -200,16 +202,38 @@ public class GameController {
      */
     public boolean checkWinCondition() {
         Player current = players[currentPlayerIndex];
+        
+        // Nếu người chơi thoả điều kiện thắng và chưa có tên trong bảng xếp hạng
         if (current.hasWon() && !rankings.contains(current.getName())) {
             rankings.add(current.getName());
-            ui.showPopup("🏆 Người chơi màu [" + current.getName() + "] đã VỀ ĐÍCH! Hạng #" + rankings.size());
+            
+            int currentRank = rankings.size();
+            ui.showPopup("🏆 Chúc mừng người chơi [" + current.getName() + "] đã VỀ ĐÍCH! Đạt Hạng #" + currentRank); //
 
+            // Đếm số người đã về đích
             int finishedCount = 0;
-            for (Player p : players) if (p.hasWon()) finishedCount++;
+            for (Player p : players) {
+                if (p.hasWon()) finishedCount++;
+            }
 
+            // Với bàn cờ 4 người, khi có 3 người về đích thì trận đấu kết thúc hoàn toàn
             if (finishedCount >= 3) {
-                ui.showPopup("🎮 Trận đấu kết thúc hoàn toàn!");
-                restartGame();
+                // Thêm người chơi cuối cùng vào BXH nốt
+                for (Player p : players) {
+                    if (!rankings.contains(p.getName())) {
+                        rankings.add(p.getName());
+                    }
+                }
+                
+                // Tạo chuỗi hiển thị bảng xếp hạng tổng kết
+                StringBuilder scoreboard = new StringBuilder("🎮 TRẬN ĐẤU KẾT THÚC HOÀN TOÀN! 🎮\n\n");
+                scoreboard.append("🏆 BẢNG XẾP HẠNG CHUNG CUỘC:\n");
+                for (int i = 0; i < rankings.size(); i++) {
+                    scoreboard.append("  Hạng ").append(i + 1).append(": ").append(rankings.get(i)).append("\n");
+                }
+                
+                ui.showPopup(scoreboard.toString()); // Hiển thị bảng xếp hạng cuối cùng
+                restartGame(); // Reset game mới
                 return true;
             }
         }
@@ -220,14 +244,15 @@ public class GameController {
         hasRolled = false;
         highlightedHorses.clear();
         dice.reset();
+        
         if (extraTurn && !players[currentPlayerIndex].hasWon()) {
-            ui.showMessage("🎲 Đổ trúng cặp đôi! " + players[currentPlayerIndex].getName() + " được THƯỞNG THÊM 1 lượt.");
+            String reason = dice.isDouble() ? "CẶP ĐÔI TRÙNG NHAU" : "CẶP ĐẶC BIỆT 1-6";
+            ui.showMessage("🎲 Đổ trúng [" + reason + "]! " + players[currentPlayerIndex].getName() + " được THƯỞNG THÊM 1 lượt.");
         } else {
             nextPlayerTurn();
         }
         ui.renderBoard(board, players);
     }
-
     /**
      * Advances the turn to the next eligible player.
      * Skips players who have already won, and informs the UI whose turn it is.
