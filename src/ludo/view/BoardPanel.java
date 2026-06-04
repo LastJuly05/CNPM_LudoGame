@@ -263,11 +263,12 @@ public class BoardPanel extends JPanel {
         // Viền highlight (nhấp nháy vàng)
         if (highlighted) {
             g2d.setColor(COLOR_HIGHLIGHT);
-            g2d.setStroke(new BasicStroke(3f));
+            // tăng kích thước viền 3f - > 6f
+            g2d.setStroke(new BasicStroke(6f));
             g2d.drawOval(x + pad - 3, y + pad - 3, d + 6, d + 6);
             g2d.setStroke(new BasicStroke(1f));
         }
-
+//
         // Thân ngựa (hình tròn với gradient)
         GradientPaint gp = new GradientPaint(
             x + pad, y + pad, color.brighter(),
