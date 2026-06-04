@@ -17,13 +17,13 @@ public class BoardPanel extends JPanel {
     private GameController controller;
 
     // Màu sắc UI đẹp
-    private static final Color COLOR_RED    = new Color(220, 50,  50);
-    private static final Color COLOR_BLUE   = new Color(50,  100, 220);
-    private static final Color COLOR_GREEN  = new Color(50,  180, 80);
+    private static final Color COLOR_RED = new Color(220, 50, 50);
+    private static final Color COLOR_BLUE = new Color(50, 100, 220);
+    private static final Color COLOR_GREEN = new Color(50, 180, 80);
     private static final Color COLOR_YELLOW = new Color(220, 190, 0);
-    private static final Color COLOR_BG     = new Color(240, 235, 220);
-    private static final Color COLOR_PATH   = new Color(255, 255, 255);
-    private static final Color COLOR_SAFE   = new Color(200, 230, 255);
+    private static final Color COLOR_BG = new Color(240, 235, 220);
+    private static final Color COLOR_PATH = new Color(255, 255, 255);
+    private static final Color COLOR_SAFE = new Color(200, 230, 255);
     private static final Color COLOR_HIGHLIGHT = new Color(255, 215, 0);
 
     public BoardPanel() {
@@ -35,6 +35,10 @@ public class BoardPanel extends JPanel {
                 handleMouseClick(e.getX(), e.getY());
             }
         });
+        // Cứ mỗi 30 mili-giây sẽ ép bàn cờ repaint lại để cập nhật hiệu ứng biến thiên
+        // của hàm Sin
+        Timer animationTimer = new Timer(30, e -> repaint());
+        animationTimer.start();
     }
 
     public void setController(GameController controller) {
@@ -48,7 +52,8 @@ public class BoardPanel extends JPanel {
     }
 
     private void handleMouseClick(int mouseX, int mouseY) {
-        if (players == null || controller == null) return;
+        if (players == null || controller == null)
+            return;
 
         int size = Math.min(getWidth(), getHeight()) - 40;
         int cs = size / 15;
@@ -95,11 +100,16 @@ public class BoardPanel extends JPanel {
     private void initPathCoordinates() {
         pathCoords = new Point[56];
         int idx = 0;
-        for (int i = 7; i <= 14; i++) pathCoords[idx++] = new Point(i, 0);
-        for (int i = 1; i <= 14; i++) pathCoords[idx++] = new Point(14, i);
-        for (int i = 13; i >= 0; i--) pathCoords[idx++] = new Point(i, 14);
-        for (int i = 13; i >= 0; i--) pathCoords[idx++] = new Point(0, i);
-        for (int i = 1; i <= 6;  i++) pathCoords[idx++] = new Point(i, 0);
+        for (int i = 7; i <= 14; i++)
+            pathCoords[idx++] = new Point(i, 0);
+        for (int i = 1; i <= 14; i++)
+            pathCoords[idx++] = new Point(14, i);
+        for (int i = 13; i >= 0; i--)
+            pathCoords[idx++] = new Point(i, 14);
+        for (int i = 13; i >= 0; i--)
+            pathCoords[idx++] = new Point(0, i);
+        for (int i = 1; i <= 6; i++)
+            pathCoords[idx++] = new Point(i, 0);
     }
 
     @Override
@@ -121,21 +131,26 @@ public class BoardPanel extends JPanel {
         g2d.fillRect(ox, oy, cs * 15, cs * 15);
 
         // Vẽ 4 chuồng màu (base)
-        drawBase(g2d, ox, oy, cs, 0, 0, COLOR_RED,    "ĐỎ");
-        drawBase(g2d, ox, oy, cs, 9, 0, COLOR_BLUE,   "XANH");
-        drawBase(g2d, ox, oy, cs, 9, 9, COLOR_GREEN,  "LÁ");
+        drawBase(g2d, ox, oy, cs, 0, 0, COLOR_RED, "ĐỎ");
+        drawBase(g2d, ox, oy, cs, 9, 0, COLOR_BLUE, "XANH");
+        drawBase(g2d, ox, oy, cs, 9, 9, COLOR_GREEN, "LÁ");
         drawBase(g2d, ox, oy, cs, 0, 9, COLOR_YELLOW, "VÀNG");
 
         // Vẽ 56 ô vòng ngoài
         for (int i = 0; i < 56; i++) {
             Point p = pathCoords[i];
             Color bg = COLOR_PATH;
-            if (board != null && board.isSafeCell(i)) bg = COLOR_SAFE;
+            if (board != null && board.isSafeCell(i))
+                bg = COLOR_SAFE;
             // Ô xuất phát (màu đặc trưng)
-            if (i == 0)  bg = new Color(255, 120, 120);
-            if (i == 14) bg = new Color(100, 140, 255);
-            if (i == 28) bg = new Color(100, 220, 120);
-            if (i == 42) bg = new Color(255, 230, 60);
+            if (i == 0)
+                bg = new Color(255, 120, 120);
+            if (i == 14)
+                bg = new Color(100, 140, 255);
+            if (i == 28)
+                bg = new Color(100, 220, 120);
+            if (i == 42)
+                bg = new Color(255, 230, 60);
             drawCell(g2d, ox + p.x * cs, oy + p.y * cs, cs, bg);
 
             // Số thứ tự ô (nhỏ, ở góc)
@@ -146,9 +161,9 @@ public class BoardPanel extends JPanel {
 
         // Đường lên chuồng đích (home stretch)
         for (int i = 1; i <= 6; i++) {
-            drawHomeCell(g2d, ox + 7 * cs, oy + i * cs, cs, COLOR_RED,    i);   // Đỏ đi xuống
-            drawHomeCell(g2d, ox + (14-i) * cs, oy + 7 * cs, cs, COLOR_BLUE,   i);
-            drawHomeCell(g2d, ox + 7 * cs, oy + (14-i) * cs, cs, COLOR_GREEN,  i);
+            drawHomeCell(g2d, ox + 7 * cs, oy + i * cs, cs, COLOR_RED, i); // Đỏ đi xuống
+            drawHomeCell(g2d, ox + (14 - i) * cs, oy + 7 * cs, cs, COLOR_BLUE, i);
+            drawHomeCell(g2d, ox + 7 * cs, oy + (14 - i) * cs, cs, COLOR_GREEN, i);
             drawHomeCell(g2d, ox + i * cs, oy + 7 * cs, cs, COLOR_YELLOW, i);
         }
 
@@ -199,7 +214,7 @@ public class BoardPanel extends JPanel {
     private void drawHomeCell(Graphics2D g2d, int x, int y, int size, Color color, int step) {
         // Màu nhạt dần về trung tâm
         float alpha = 0.3f + (step / 6f) * 0.5f;
-        Color c = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255));
+        Color c = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) (alpha * 255));
         g2d.setColor(c);
         g2d.fillRect(x, y, size, size);
         g2d.setColor(color.darker());
@@ -208,14 +223,14 @@ public class BoardPanel extends JPanel {
 
     private void drawCenter(Graphics2D g2d, int x, int y, int cs) {
         // Hình thoi trung tâm
-        int[] xp = {x + cs/2, x + cs, x + cs/2, x};
-        int[] yp = {y, y + cs/2, y + cs, y + cs/2};
+        int[] xp = { x + cs / 2, x + cs, x + cs / 2, x };
+        int[] yp = { y, y + cs / 2, y + cs, y + cs / 2 };
         GradientPaint gp = new GradientPaint(x, y, new Color(80, 80, 80), x + cs, y + cs, new Color(40, 40, 40));
         g2d.setPaint(gp);
         g2d.fillPolygon(xp, yp, 4);
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, Math.max(8, cs / 3)));
-        g2d.drawString("★", x + cs/4, y + cs * 3/4);
+        g2d.drawString("★", x + cs / 4, y + cs * 3 / 4);
     }
 
     private void drawAllHorses(Graphics2D g2d, int ox, int oy, int cs, List<Horse> highlighted) {
@@ -256,24 +271,31 @@ public class BoardPanel extends JPanel {
     }
 
     private void drawHorseIcon(Graphics2D g2d, int x, int y, int size, Color color,
-                                boolean highlighted, boolean finished) {
+            boolean highlighted, boolean finished) {
         int pad = size / 6;
         int d = size - 2 * pad;
 
-        // Viền highlight (nhấp nháy vàng)
         if (highlighted) {
-            g2d.setColor(COLOR_HIGHLIGHT);
-            // tăng kích thước viền 3f - > 6f
-            g2d.setStroke(new BasicStroke(6f));
-            g2d.drawOval(x + pad - 3, y + pad - 3, d + 6, d + 6);
-            g2d.setStroke(new BasicStroke(1f));
-        }
-//
+        double pulse = (Math.sin(System.currentTimeMillis() / 150.0) + 1.0) / 2.0;
+        int glowOffset = 6 + (int)(pulse * 4); 
+        int alpha = 60 + (int)(pulse * 90);
+        Color glowColor = new Color(color.getRed(), color.getGreen(), color.getBlue(), alpha);
+        
+        g2d.setColor(glowColor);
+        
+        // Tô đặc hình tròn phát sáng to DƯỚI ĐÁY
+        g2d.fillOval(
+            x + pad - glowOffset, 
+            y + pad - glowOffset, 
+            d + (glowOffset * 2), 
+            d + (glowOffset * 2)
+        );
+    }
+        //
         // Thân ngựa (hình tròn với gradient)
         GradientPaint gp = new GradientPaint(
-            x + pad, y + pad, color.brighter(),
-            x + pad + d, y + pad + d, color.darker()
-        );
+                x + pad, y + pad, color.brighter(),
+                x + pad + d, y + pad + d, color.darker());
         g2d.setPaint(gp);
         g2d.fillOval(x + pad, y + pad, d, d);
 
@@ -298,21 +320,38 @@ public class BoardPanel extends JPanel {
     private Point getHomePathCoords(PlayerColor color, int step) {
         int s = Math.max(1, Math.min(step, 6));
         switch (color) {
-            case RED:    return new Point(7, s);
-            case BLUE:   return new Point(14 - s, 7);
-            case GREEN:  return new Point(7, 14 - s);
-            case YELLOW: return new Point(s, 7);
-            default:     return new Point(7, 7);
+            case RED:
+                return new Point(7, s);
+            case BLUE:
+                return new Point(14 - s, 7);
+            case GREEN:
+                return new Point(7, 14 - s);
+            case YELLOW:
+                return new Point(s, 7);
+            default:
+                return new Point(7, 7);
         }
     }
 
     private Point getBaseSlotPixel(PlayerColor color, int slotIndex, int ox, int oy, int cs) {
         int baseCol = 0, baseRow = 0;
         switch (color) {
-            case RED:    baseCol = 0; baseRow = 0; break;
-            case BLUE:   baseCol = 9; baseRow = 0; break;
-            case GREEN:  baseCol = 9; baseRow = 9; break;
-            case YELLOW: baseCol = 0; baseRow = 9; break;
+            case RED:
+                baseCol = 0;
+                baseRow = 0;
+                break;
+            case BLUE:
+                baseCol = 9;
+                baseRow = 0;
+                break;
+            case GREEN:
+                baseCol = 9;
+                baseRow = 9;
+                break;
+            case YELLOW:
+                baseCol = 0;
+                baseRow = 9;
+                break;
         }
         int dx = (slotIndex % 2 == 0) ? 1 : 3;
         int dy = (slotIndex < 2) ? 1 : 3;
@@ -321,11 +360,16 @@ public class BoardPanel extends JPanel {
 
     private Color getAwtColor(PlayerColor color) {
         switch (color) {
-            case RED:    return COLOR_RED;
-            case BLUE:   return COLOR_BLUE;
-            case GREEN:  return COLOR_GREEN;
-            case YELLOW: return COLOR_YELLOW;
-            default:     return Color.GRAY;
+            case RED:
+                return COLOR_RED;
+            case BLUE:
+                return COLOR_BLUE;
+            case GREEN:
+                return COLOR_GREEN;
+            case YELLOW:
+                return COLOR_YELLOW;
+            default:
+                return Color.GRAY;
         }
     }
 }
