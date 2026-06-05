@@ -4,7 +4,7 @@ import ludo.controller.GameController;
 import ludo.view.GameUI;
 import javax.swing.SwingUtilities;
 
-public class Main {
+public class main {
     public static void main(String[] args) {
         // Đảm bảo UI chạy trên Event Dispatch Thread của Swing
         SwingUtilities.invokeLater(() -> {
