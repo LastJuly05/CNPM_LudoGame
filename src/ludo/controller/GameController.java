@@ -117,7 +117,15 @@ public class GameController {
 
             // UC5: Lọc lại danh sách, loại bỏ những con ngựa bị cản đường
             for (Horse h : rawList) {
-                if (h.getState() == HorseState.IN_BASE || h.getState() == HorseState.IN_HOME) {
+                if (h.getState() == HorseState.IN_BASE) {
+                    // Kiểm tra ô xuất phát: nếu có ngựa cùng màu thì không thể xuất quân
+                    int startPos = board.getStartPosition(h.getColor());
+                    Horse occupier = board.getHorseAt(startPos);
+                    if (occupier != null && occupier.getColor() == h.getColor()) {
+                        continue;
+                    }
+                    highlightedHorses.add(h);
+                } else if (h.getState() == HorseState.IN_HOME) {
                     highlightedHorses.add(h);
                 } else if (h.getState() == HorseState.ON_PATH) {
                     // Chỉ highlight nếu ít nhất 1 trong các hướng đi không bị cản
@@ -181,7 +189,7 @@ public class GameController {
         h.setDistanceTraveled(0);
         board.setHorseAt(pos, h);
         ui.renderBoard(board, players);
-        endTurn(dice.isDouble());
+        endTurn(dice.isDeployable());
     }
 
     private void moveHorseOnPath(Horse h, int steps) {
@@ -196,7 +204,7 @@ public class GameController {
             h.setHomeStep(0);
             ui.showMessage("🚪 Ngựa đã đến cửa chuồng! Đổ xúc xắc tiếp.");
             ui.renderBoard(board, players);
-            endTurn(dice.isDouble());
+            endTurn(dice.isDeployable());
             return;
         }
 
@@ -218,7 +226,7 @@ public class GameController {
         h.setDistanceTraveled(newDist);
         board.setHorseAt(newPos, h);
         ui.renderBoard(board, players);
-        endTurn(dice.isDouble());
+        endTurn(dice.isDeployable());
     }
 
     private void tryClimbHome(Horse h) {
@@ -273,6 +281,10 @@ public class GameController {
     private void endTurn(boolean extraTurn) {
         hasRolled = false;
         highlightedHorses.clear();
+
+        boolean isDouble = dice.isDouble();
+        boolean isOneSix = (currentV1 == 1 && currentV2 == 6) || (currentV1 == 6 && currentV2 == 1);
+
         dice.reset();
         if (extraTurn && !players[currentPlayerIndex].hasWon()) {
             ui.showMessage("🎲 Đổ trúng cặp đôi! " + players[currentPlayerIndex].getName() + " được THƯỞNG THÊM 1 lượt.");
