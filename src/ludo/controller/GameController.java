@@ -88,60 +88,13 @@ public class GameController {
         v2Used = false;
 
         ui.updateDiceDisplay(currentV1, currentV2);
-        ui.showMessage(players[currentPlayerIndex].getName() + " đổ được: [" + currentV1 + "], [" + currentV2 + "] (tổng: " + (currentV1 + currentV2) + ")");
+        ui.showMessage(players[currentPlayerIndex].getName() + " đổ được: [" + currentV1 + "], [" + currentV2 + "]");
 
-        // UC5: Kiểm tra cản đường và highlight ngựa hợp lệ
-        updateHighlightedHorses();
-
+        highlightedHorses = players[currentPlayerIndex].getValidMoves(currentV1, currentV2);
         ui.renderBoard(board, players);
 
         if (highlightedHorses.isEmpty()) {
             ui.showMessage("Không có nước đi hợp lệ! Mất lượt sau 1.5 giây...");
-            new javax.swing.Timer(1500, e -> {
-                ((javax.swing.Timer) e.getSource()).stop();
-                endTurn(false);
-            }).start();
-        }
-    }
-
-    private void updateHighlightedHorses() {
-        if (v1Used && v2Used) {
-            highlightedHorses.clear();
-        } else {
-            int v1 = v1Used ? 0 : currentV1;
-            int v2 = v2Used ? 0 : currentV2;
-
-            // Lấy danh sách thô từ Player
-            List<Horse> rawList = players[currentPlayerIndex].getValidMoves(v1, v2);
-            highlightedHorses.clear();
-
-            // UC5: Lọc lại danh sách, loại bỏ những con ngựa bị cản đường
-            for (Horse h : rawList) {
-                if (h.getState() == HorseState.IN_BASE) {
-                    // Kiểm tra ô xuất phát: nếu có ngựa cùng màu thì không thể xuất quân
-                    int startPos = board.getStartPosition(h.getColor());
-                    Horse occupier = board.getHorseAt(startPos);
-                    if (occupier != null && occupier.getColor() == h.getColor()) {
-                        continue;
-                    }
-                    highlightedHorses.add(h);
-                } else if (h.getState() == HorseState.IN_HOME) {
-                    highlightedHorses.add(h);
-                } else if (h.getState() == HorseState.ON_PATH) {
-                    // Chỉ highlight nếu ít nhất 1 trong các hướng đi không bị cản
-                    if ((v1 > 0 && canMove(h, v1)) ||
-                            (v2 > 0 && canMove(h, v2)) ||
-                            (v1 > 0 && v2 > 0 && canMove(h, v1 + v2))) {
-                        highlightedHorses.add(h);
-                    }
-                }
-            }
-        }
-
-        ui.renderBoard(board, players);
-
-        if (highlightedHorses.isEmpty()) {
-            ui.showMessage("Không có nước đi (hoặc bị cản đường)! Mất lượt.");
             new javax.swing.Timer(1500, e -> {
                 ((javax.swing.Timer) e.getSource()).stop();
                 endTurn(false);
@@ -188,7 +141,7 @@ public class GameController {
         h.setState(HorseState.ON_PATH);
         h.setDistanceTraveled(0);
         board.setHorseAt(pos, h);
-        ui.renderBoard(board, players);
+        endTurn(dice.isDouble());
         endTurn(dice.isDeployable());
     }
 
@@ -196,15 +149,13 @@ public class GameController {
         int oldPos = h.getCurrentPosition();
         int newDist = h.getDistanceTraveled() + steps;
 
-        if (newDist == 55) {
+        if (newDist == 55) { // Tiến đến sát cửa chuồng đích
             board.clearPosition(oldPos);
             h.setCurrentPosition(-1);
             h.setDistanceTraveled(55);
             h.setState(HorseState.IN_HOME);
             h.setHomeStep(0);
-            ui.showMessage("🚪 Ngựa đã đến cửa chuồng! Đổ xúc xắc tiếp.");
-            ui.renderBoard(board, players);
-            endTurn(dice.isDeployable());
+            endTurn(dice.isDeployable()); 
             return;
         }
 
@@ -225,7 +176,6 @@ public class GameController {
         h.setCurrentPosition(newPos);
         h.setDistanceTraveled(newDist);
         board.setHorseAt(newPos, h);
-        ui.renderBoard(board, players);
         endTurn(dice.isDeployable());
     }
 
@@ -239,40 +189,58 @@ public class GameController {
                 h.setState(HorseState.FINISHED);
                 ui.showMessage("🎉 Quân cờ đã về đích HOÀN THÀNH!");
             }
-            ui.renderBoard(board, players);
+            
             if (players[currentPlayerIndex].hasWon()) {
                 boolean isGameOver = checkWinCondition();
                 if (!isGameOver) {
-                    endTurn(false);
+                    endTurn(false); 
                 }
             } else {
-                endTurn(dice.isDouble());
+                endTurn(dice.isDeployable());
             }
         }
     }
 
     /**
      * Evaluates if the current player has satisfied a win condition.
-     * Updates rankings, shows appropriate pop-ups, and determines whether the match
+     * Updates rankings, shows appropriate pop‑ups, and determines whether the match
      * should continue, advance to the next player, or restart entirely.
      */
     public boolean checkWinCondition() {
         Player current = players[currentPlayerIndex];
+        
+        // Nếu người chơi thoả điều kiện thắng và chưa có tên trong bảng xếp hạng
         if (current.hasWon() && !rankings.contains(current.getName())) {
             rankings.add(current.getName());
-            ui.showPopup("🏆 Người chơi màu [" + current.getName() + "] đã VỀ ĐÍCH! Hạng #" + rankings.size());
+            
+            int currentRank = rankings.size();
+            ui.showPopup("🏆 Chúc mừng người chơi [" + current.getName() + "] đã VỀ ĐÍCH! Đạt Hạng #" + currentRank); //
 
+            // Đếm số người đã về đích
             int finishedCount = 0;
-            for (Player p : players) if (p.hasWon()) finishedCount++;
+            for (Player p : players) {
+                if (p.hasWon()) finishedCount++;
+            }
 
+            // Với bàn cờ 4 người, khi có 3 người về đích thì trận đấu kết thúc hoàn toàn
             if (finishedCount >= 3) {
-                ui.showPopup("🎮 Trận đấu kết thúc hoàn toàn!\nThứ hạng:\n" +
-                        String.join("\n", rankings.stream()
-                                .map(r -> (rankings.indexOf(r) + 1) + ". " + r).toArray(String[]::new)));
-                restartGame();
+                // Thêm người chơi cuối cùng vào BXH nốt
+                for (Player p : players) {
+                    if (!rankings.contains(p.getName())) {
+                        rankings.add(p.getName());
+                    }
+                }
+                
+                // Tạo chuỗi hiển thị bảng xếp hạng tổng kết
+                StringBuilder scoreboard = new StringBuilder("🎮 TRẬN ĐẤU KẾT THÚC HOÀN TOÀN! 🎮\n\n");
+                scoreboard.append("🏆 BẢNG XẾP HẠNG CHUNG CUỘC:\n");
+                for (int i = 0; i < rankings.size(); i++) {
+                    scoreboard.append("  Hạng ").append(i + 1).append(": ").append(rankings.get(i)).append("\n");
+                }
+                
+                ui.showPopup(scoreboard.toString()); // Hiển thị bảng xếp hạng cuối cùng
+                restartGame(); // Reset game mới
                 return true;
-            } else {
-                nextPlayerTurn();
             }
         }
         return false;
@@ -281,19 +249,16 @@ public class GameController {
     private void endTurn(boolean extraTurn) {
         hasRolled = false;
         highlightedHorses.clear();
-
-        boolean isDouble = dice.isDouble();
-        boolean isOneSix = (currentV1 == 1 && currentV2 == 6) || (currentV1 == 6 && currentV2 == 1);
-
         dice.reset();
+        
         if (extraTurn && !players[currentPlayerIndex].hasWon()) {
-            ui.showMessage("🎲 Đổ trúng cặp đôi! " + players[currentPlayerIndex].getName() + " được THƯỞNG THÊM 1 lượt.");
+            String reason = dice.isDouble() ? "CẶP ĐÔI TRÙNG NHAU" : "CẶP ĐẶC BIỆT 1-6";
+            ui.showMessage("🎲 Đổ trúng [" + reason + "]! " + players[currentPlayerIndex].getName() + " được THƯỞNG THÊM 1 lượt.");
         } else {
             nextPlayerTurn();
         }
         ui.renderBoard(board, players);
     }
-
     /**
      * Advances the turn to the next eligible player.
      * Skips players who have already won, and informs the UI whose turn it is.
@@ -308,26 +273,9 @@ public class GameController {
         ui.showMessage("🎯 Lượt của: " + players[currentPlayerIndex].getName());
     }
 
-    // Helper: UC5 - Kiểm tra xem quãng đường di chuyển có bị ngựa khác cản không
-    private boolean canMove(Horse h, int steps) {
-        if (h.getDistanceTraveled() + steps > 55) return false;
-
-        int startPos = h.getCurrentPosition();
-        if (startPos != -1) {
-            for (int i = 1; i < steps; i++) {
-                int checkPos = (startPos + i) % 56;
-                if (board.getHorseAt(checkPos) != null) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    // Getters
+    // --- Getters ---
     public Board getBoard() { return board; }
     public Player[] getPlayers() { return players; }
     public List<Horse> getHighlightedHorses() { return highlightedHorses; }
     public int getCurrentPlayerIndex() { return currentPlayerIndex; }
-    public Dice getDice() { return dice; }
 }
