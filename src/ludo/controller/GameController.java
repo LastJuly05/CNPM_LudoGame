@@ -77,19 +77,8 @@ public class GameController {
         
         ui.updateDiceDisplay(currentV1, currentV2);
         ui.showMessage(players[currentPlayerIndex].getName() + " đổ được " + currentV1 + " và " + currentV2 + " (tổng: " + (currentV1 + currentV2) + ")");
-        // Gọi hàm kiểm tra cản đường
+        // Gọi hàm kiểm tra cản đường, tính ngựa hợp lệ, highlight và tự động qua lượt nếu không đi được
         updateHighlightedHorses();
-        // Tính ngựa hợp lệ và highlight
-        highlightedHorses = players[currentPlayerIndex].getValidMoves(currentV1, currentV2);
-        ui.renderBoard(board, players);
-
-        if (highlightedHorses.isEmpty()) {
-            ui.showMessage("Không có nước đi! Mất lượt.");
-            new javax.swing.Timer(1500, e -> {
-                ((javax.swing.Timer) e.getSource()).stop();
-                endTurn(false);
-            }).start();
-        }
     }
 
     private void updateHighlightedHorses() {
@@ -103,9 +92,17 @@ public class GameController {
             List<Horse> rawList = players[currentPlayerIndex].getValidMoves(v1, v2);
             highlightedHorses.clear();
             
-            // UC5: Lọc lại danh sách, loại bỏ những con ngựa bị cản đường
+            // UC5: Lọc lại danh sách, loại bỏ những con ngựa bị cản đường hoặc bị chặn ô xuất phát
             for (Horse h : rawList) {
-                if (h.getState() == HorseState.IN_BASE || h.getState() == HorseState.IN_HOME) {
+                if (h.getState() == HorseState.IN_BASE) {
+                    // Kiểm tra ô xuất phát: nếu có ngựa cùng màu thì không thể xuất quân
+                    int startPos = board.getStartPosition(h.getColor());
+                    Horse occupier = board.getHorseAt(startPos);
+                    if (occupier != null && occupier.getColor() == h.getColor()) {
+                        continue;
+                    }
+                    highlightedHorses.add(h);
+                } else if (h.getState() == HorseState.IN_HOME) {
                     highlightedHorses.add(h);
                 } else if (h.getState() == HorseState.ON_PATH) {
                     // Chỉ highlight nếu ít nhất 1 trong các hướng đi không bị cản
@@ -206,7 +203,7 @@ public class GameController {
         if (players[currentPlayerIndex].hasWon()) {
             checkWinCondition();
         } else {
-            endTurn(dice.isDouble());
+            endTurn(dice.isDeployable());
         }
     }
 
@@ -259,7 +256,7 @@ public class GameController {
         board.setHorseAt(pos, h);
 
         ui.renderBoard(board, players);
-        endTurn(dice.isDouble());
+        endTurn(dice.isDeployable());
     }
 
     private void moveHorseOnPath(Horse h, int steps) {
@@ -277,7 +274,7 @@ public class GameController {
             board.setHorseAt(newPos, h);
             ui.showMessage("🚪 Ngựa đã đến cửa chuồng! Đổ xúc xắc tiếp.");
             ui.renderBoard(board, players);
-            endTurn(dice.isDouble());
+            endTurn(dice.isDeployable());
             return;
         }
 
@@ -304,16 +301,26 @@ public class GameController {
         board.setHorseAt(newPos, h);
 
         ui.renderBoard(board, players);
-        endTurn(dice.isDouble());
+        endTurn(dice.isDeployable());
     }
 
     private void endTurn(boolean extraTurn) {
         hasRolled = false;
         highlightedHorses.clear();
+
+        boolean isDouble = dice.isDouble();
+        boolean isOneSix = (currentV1 == 1 && currentV2 == 6) || (currentV1 == 6 && currentV2 == 1);
+
         dice.reset();
 
         if (extraTurn) {
-            ui.showMessage("🎲 Đổ được đôi! " + players[currentPlayerIndex].getName() + " được đổ thêm!");
+            if (isDouble) {
+                ui.showMessage("🎲 Đổ được đôi! " + players[currentPlayerIndex].getName() + " được đổ thêm!");
+            } else if (isOneSix) {
+                ui.showMessage("🎲 Đổ được cặp 1-6! " + players[currentPlayerIndex].getName() + " được đổ thêm!");
+            } else {
+                ui.showMessage("🎲 Được đổ thêm lượt! " + players[currentPlayerIndex].getName() + " được đổ thêm!");
+            }
         } else {
             nextPlayerTurn();
         }
