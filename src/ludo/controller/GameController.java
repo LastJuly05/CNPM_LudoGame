@@ -103,7 +103,13 @@ public class GameController {
                     }
                     highlightedHorses.add(h);
                 } else if (h.getState() == HorseState.IN_HOME) {
-                    highlightedHorses.add(h);
+                    // UC7: Chỉ highlight nếu bậc kế tiếp còn trống VÀ xúc xắc khớp
+                    int nextStep = h.getHomeStep() + 1;
+                    if (nextStep <= 6
+                            && !isHomeStepOccupied(h.getColor(), nextStep)
+                            && (v1 == nextStep || v2 == nextStep || (v1 + v2) == nextStep)) {
+                        highlightedHorses.add(h);
+                    }
                 } else if (h.getState() == HorseState.ON_PATH) {
                     // Chỉ highlight nếu ít nhất 1 trong các hướng đi không bị cản
                     if ((v1 > 0 && canMove(h, v1)) || 
@@ -171,39 +177,66 @@ public class GameController {
         int targetStep = currentStep + 1;
         int sum = currentV1 + currentV2;
 
+        // UC7: Kiểm tra bậc hợp lệ
         if (targetStep > 6) {
             ui.showMessage("Ngựa đã vào đích rồi!");
             return;
         }
+
+        // UC7: Kiểm tra bậc đích đã bị chiếm chưa
         if (isHomeStepOccupied(h.getColor(), targetStep)) {
-            ui.showMessage("Bậc " + targetStep + " đã có ngựa!");
+            ui.showMessage("Bậc " + targetStep + " đã có ngựa của bạn!");
             return;
         }
-        if (currentV1 != targetStep && currentV2 != targetStep && sum != targetStep) {
+
+        // UC7: Kiểm tra xúc xắc khớp chính xác với targetStep
+        boolean v1Matches = (!v1Used && currentV1 == targetStep);
+        boolean v2Matches = (!v2Used && currentV2 == targetStep);
+        boolean sumMatches = (!v1Used && !v2Used && sum == targetStep);
+
+        if (!v1Matches && !v2Matches && !sumMatches) {
             ui.showMessage("Cần đổ được " + targetStep + " để lên bậc này!");
             return;
         }
 
-        // Xóa khỏi bàn cờ nếu đang ON_PATH
+        // UC7: Ghi nhận xúc xắc đã dùng
+        if (sumMatches) {
+            // Dùng cả 2 viên xúc xắc (tổng = targetStep)
+            v1Used = true;
+            v2Used = true;
+        } else if (v1Matches) {
+            v1Used = true;
+        } else {
+            // v2Matches
+            v2Used = true;
+        }
+
+        // Xóa khỏi bàn cờ nếu đang ON_PATH (ở cửa chuồng)
         if (h.getState() == HorseState.ON_PATH) {
             board.clearPosition(h.getCurrentPosition());
             h.setCurrentPosition(-1);
         }
 
+        // Cập nhật trạng thái ngựa
         h.setHomeStep(targetStep);
         if (targetStep == 6) {
             h.setState(HorseState.FINISHED);
             ui.showMessage("🎉 Ngựa của " + players[currentPlayerIndex].getName() + " đã VỀ ĐÍCH!");
         } else {
             h.setState(HorseState.IN_HOME);
+            ui.showMessage("✅ Ngựa lên bậc " + targetStep + " trong chuồng!");
         }
 
         ui.renderBoard(board, players);
 
         if (players[currentPlayerIndex].hasWon()) {
             checkWinCondition();
-        } else {
+        } else if (v1Used && v2Used) {
+            // Đã dùng hết cả 2 xúc xắc → kết thúc lượt
             endTurn(dice.isDeployable());
+        } else {
+            // Còn 1 xúc xắc chưa dùng → tiếp tục highlight ngựa hợp lệ
+            updateHighlightedHorses();
         }
     }
 
