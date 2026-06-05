@@ -14,6 +14,8 @@ public class GameController {
 
     private boolean hasRolled = false;
     private int currentV1 = 0, currentV2 = 0;
+    private boolean v1Used = false;
+    private boolean v2Used = false;
     private List<Horse> highlightedHorses = new ArrayList<>();
     private List<String> rankings = new ArrayList<>();
 
@@ -37,6 +39,7 @@ public class GameController {
         currentPlayerIndex = 0;
         hasRolled = false;
         currentV1 = 0; currentV2 = 0;
+        v1Used = false; v2Used = false;
         highlightedHorses.clear();
         rankings.clear();
     }
@@ -80,6 +83,9 @@ public class GameController {
         currentV1 = result[0];
         currentV2 = result[1];
         hasRolled = true;
+
+        v1Used = false;
+        v2Used = false;
 
         ui.updateDiceDisplay(currentV1, currentV2);
         ui.showMessage(players[currentPlayerIndex].getName() + " đổ được: [" + currentV1 + "], [" + currentV2 + "]");
