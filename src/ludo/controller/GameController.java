@@ -26,14 +26,18 @@ public class GameController {
         initGame();
     }
 
+    /**
+     * Initialise or reset the game state.
+     * Sets up board, dice, players, and clears any previous turn data.
+     */
     private void initGame() {
         board = new Board();
         dice = new Dice();
         players = new Player[]{
-            new Player("Đỏ", PlayerColor.RED),
-            new Player("Xanh Dương", PlayerColor.BLUE),
-            new Player("Xanh Lá", PlayerColor.GREEN),
-            new Player("Vàng", PlayerColor.YELLOW)
+                new Player("Đỏ", PlayerColor.RED),
+                new Player("Xanh Dương", PlayerColor.BLUE),
+                new Player("Xanh Lá", PlayerColor.GREEN),
+                new Player("Vàng", PlayerColor.YELLOW)
         };
         currentPlayerIndex = 0;
         hasRolled = false;
@@ -45,23 +49,36 @@ public class GameController {
 
     public void setUI(GameUI ui) { this.ui = ui; }
 
+    /**
+     * Starts a new game session.
+     * Resets the current player index to the first player, clears any rolled state,
+     * and notifies the UI to display the starting message and board.
+     */
     public void startGame() {
         currentPlayerIndex = 0;
         hasRolled = false;
-        ui.showMessage("Lượt của: " + players[currentPlayerIndex].getName());
-        ui.renderBoard(board, players);
+        if (ui != null) {
+            ui.showMessage("Trận đấu bắt đầu! Lượt của: " + players[currentPlayerIndex].getName());
+            ui.renderBoard(board, players);
+        }
     }
 
+    /**
+     * Restarts the game after it has ended or when the user requests a reset.
+     * Re-initialises the game state and updates the UI accordingly.
+     */
     public void restartGame() {
         initGame();
-        ui.resetDiceDisplay();
-        ui.showMessage("Game mới bắt đầu! Lượt của: " + players[0].getName());
-        ui.renderBoard(board, players);
+        if (ui != null) {
+            ui.resetDiceDisplay();
+            ui.showMessage("Trò chơi đã chơi lại! Lượt của: " + players[0].getName());
+            ui.renderBoard(board, players);
+        }
     }
 
     public void rollDiceRequest() {
         if (hasRolled) {
-            ui.showMessage("Đã đổ rồi! Hãy chọn ngựa.");
+            ui.showMessage("Bạn đã đổ rồi! Hãy bấm chọn quân cờ để di chuyển.");
             return;
         }
         if (players[currentPlayerIndex].hasWon()) {
@@ -78,7 +95,7 @@ public class GameController {
         v2Used = false;
 
         ui.updateDiceDisplay(currentV1, currentV2);
-        ui.showMessage(players[currentPlayerIndex].getName() + " đổ được " + currentV1 + " và " + currentV2);
+        ui.showMessage(players[currentPlayerIndex].getName() + " đổ được: [" + currentV1 + "], [" + currentV2 + "]");
 
         updateHighlightedHorses();
     }
@@ -118,7 +135,7 @@ public class GameController {
         ui.renderBoard(board, players);
 
         if (highlightedHorses.isEmpty()) {
-            ui.showMessage("Không có nước đi (hoặc bị cản đường)! Mất lượt.");
+            ui.showMessage("Không có nước đi hợp lệ! Mất lượt sau 1.5 giây...");
             new javax.swing.Timer(1500, e -> {
                 ((javax.swing.Timer) e.getSource()).stop();
                 endTurn(false);
@@ -132,18 +149,18 @@ public class GameController {
             return;
         }
         if (clickedHorse.getColor() != players[currentPlayerIndex].getColor()) {
-            ui.showMessage("Không phải ngựa của bạn!");
+            ui.showMessage("Không phải quân cờ của bạn!");
             return;
         }
         if (!highlightedHorses.contains(clickedHorse)) {
-            ui.showMessage("Ngựa này không thể đi với kết quả hiện tại!");
+            ui.showMessage("Quân này không thể đi với số điểm hiện tại!");
             return;
         }
 
         if (clickedHorse.getState() == HorseState.IN_BASE) {
             int startPos = board.getStartPosition(clickedHorse.getColor());
             
-            // Failsafe: Chống đá quân mình lần 2 (dù đã chặn ở bước highlight)
+            // Failsafe: Chống đá quân mình lần 2
             Horse occupier = board.getHorseAt(startPos);
             if (occupier != null && occupier.getColor() == clickedHorse.getColor()) {
                 ui.showMessage("Ô xuất phát đã có ngựa của bạn, không thể ra quân!");
@@ -184,9 +201,7 @@ public class GameController {
             
             if (choices.isEmpty()) return;
 
-            // FIX LỖI POP-UP LÀM PHIỀN: Bỏ qua điều kiện isDeployable
-            // Chỉ cần có 1 con ngựa duy nhất có thể đi và nó gộp được -> Tự động gộp luôn
-            if (highlightedHorses.size() == 1 && canSum) {
+            if (highlightedHorses.size() == 1 && !dice.isDeployable() && canSum) {
                 choices.clear();
                 optionsList.clear();
                 choices.add(currentV1 + currentV2);
@@ -233,7 +248,6 @@ public class GameController {
             
             if (choices.isEmpty()) return;
 
-            // Auto-sum cho phần lên chuồng nếu chỉ có 1 ngựa
             if (highlightedHorses.size() == 1 && choices.contains(currentV1 + currentV2)) {
                 choices.clear();
                 choices.add(currentV1 + currentV2);
@@ -303,7 +317,7 @@ public class GameController {
         h.setHomeStep(targetStep);
         if (targetStep == 6) {
             h.setState(HorseState.FINISHED);
-            ui.showMessage("🎉 Ngựa của " + players[currentPlayerIndex].getName() + " đã VỀ ĐÍCH!");
+            ui.showMessage("🎉 Quân cờ đã về đích HOÀN THÀNH!");
         } else {
             h.setState(HorseState.IN_HOME);
         }
@@ -322,21 +336,51 @@ public class GameController {
         return false;
     }
 
-    private void checkWinCondition() {
+    /**
+     * Evaluates if the current player has satisfied a win condition.
+     * Updates rankings, shows appropriate pop‑ups, and determines whether the match
+     * should continue, advance to the next player, or restart entirely.
+     */
+    public boolean checkWinCondition() {
         Player current = players[currentPlayerIndex];
-        if (current.hasWon()) {
+        
+        // Nếu người chơi thoả điều kiện thắng và chưa có tên trong bảng xếp hạng
+        if (current.hasWon() && !rankings.contains(current.getName())) {
             rankings.add(current.getName());
-            ui.showPopup("🏆 CHÚC MỪNG! " + current.getName() + " đã CHIẾN THẮNG!\nXếp hạng #" + rankings.size());
-            int finished = 0;
-            for (Player p : players) { if (p.hasWon()) finished++; }
-            if (finished >= 3) {
-                for (Player p : players) { if (!p.hasWon()) rankings.add(p.getName() + " (chưa xong)"); }
-                ui.showPopup("🎮 Game kết thúc!\nThứ hạng:\n" + String.join("\n", rankings.stream()
-                    .map((r) -> (rankings.indexOf(r)+1) + ". " + r).toArray(String[]::new)));
+            
+            int currentRank = rankings.size();
+            ui.showPopup("🏆 Chúc mừng người chơi [" + current.getName() + "] đã VỀ ĐÍCH! Đạt Hạng #" + currentRank);
+
+            // Đếm số người đã về đích
+            int finishedCount = 0;
+            for (Player p : players) {
+                if (p.hasWon()) finishedCount++;
+            }
+
+            // Với bàn cờ 4 người, khi có 3 người về đích thì trận đấu kết thúc hoàn toàn
+            if (finishedCount >= 3) {
+                // Thêm người chơi cuối cùng vào BXH nốt
+                for (Player p : players) {
+                    if (!rankings.contains(p.getName())) {
+                        rankings.add(p.getName());
+                    }
+                }
+                
+                // Tạo chuỗi hiển thị bảng xếp hạng tổng kết
+                StringBuilder scoreboard = new StringBuilder("🎮 TRẬN ĐẤU KẾT THÚC HOÀN TOÀN! 🎮\n\n");
+                scoreboard.append("🏆 BẢNG XẾP HẠNG CHUNG CUỘC:\n");
+                for (int i = 0; i < rankings.size(); i++) {
+                    scoreboard.append("  Hạng ").append(i + 1).append(": ").append(rankings.get(i)).append("\n");
+                }
+                
+                ui.showPopup(scoreboard.toString()); // Hiển thị bảng xếp hạng cuối cùng
+                restartGame(); // Reset game mới
+                return true;
             } else {
                 nextPlayerTurn();
             }
         }
+        return false;
     }
 
     private void deployHorse(Horse h, int pos) {
@@ -344,7 +388,7 @@ public class GameController {
         if (occupier != null) {
             board.clearPosition(pos);
             occupier.sendToBase();
-            ui.showMessage("💥 Đã đá ngựa " + occupier.getColor() + " về chuồng!");
+            ui.showMessage("💥 Đá ngựa " + occupier.getColor() + " về chuồng!");
         }
 
         h.setCurrentPosition(pos);
@@ -374,7 +418,7 @@ public class GameController {
         if (occupier != null) {
             board.clearPosition(newPos);
             occupier.sendToBase();
-            ui.showMessage("💥 Đã đá ngựa " + occupier.getColor() + " về chuồng!");
+            ui.showMessage("💥 Đá ngựa " + occupier.getColor() + " về chuồng!");
         }
 
         board.clearPosition(oldPos);
@@ -390,16 +434,21 @@ public class GameController {
         v2Used = false;
         highlightedHorses.clear();
         dice.reset();
-
-        if (extraTurn) {
-            ui.showMessage("🎲 Đổ xúc xắc đặc biệt! " + players[currentPlayerIndex].getName() + " được lắc thêm lượt!");
+        
+        if (extraTurn && !players[currentPlayerIndex].hasWon()) {
+            String reason = dice.isDouble() ? "CẶP ĐÔI TRÙNG NHAU" : "CẶP ĐẶC BIỆT 1-6";
+            ui.showMessage("🎲 Đổ trúng [" + reason + "]! " + players[currentPlayerIndex].getName() + " được THƯỞNG THÊM 1 lượt.");
         } else {
             nextPlayerTurn();
         }
         ui.renderBoard(board, players);
     }
 
-    private void nextPlayerTurn() {
+    /**
+     * Advances the turn to the next eligible player.
+     * Skips players who have already won, and informs the UI whose turn it is.
+     */
+    public void nextPlayerTurn() {
         currentPlayerIndex = (currentPlayerIndex + 1) % 4;
         int attempts = 0;
         while (players[currentPlayerIndex].hasWon() && attempts < 4) {
@@ -409,6 +458,7 @@ public class GameController {
         ui.showMessage("🎯 Lượt của: " + players[currentPlayerIndex].getName());
     }
 
+    // --- Getters ---
     public Board getBoard() { return board; }
     public Player[] getPlayers() { return players; }
     public List<Horse> getHighlightedHorses() { return highlightedHorses; }
