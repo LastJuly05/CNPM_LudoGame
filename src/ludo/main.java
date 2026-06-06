@@ -10,10 +10,11 @@ public class main {
         SwingUtilities.invokeLater(() -> {
             GameController controller = new GameController();
             GameUI ui = new GameUI(controller);
+            controller.setUI(ui);
             ui.setVisible(true);
             
             // Bắt đầu game
-            controller.startGame();
+            controller.restartGame();
         });
     }
 }
