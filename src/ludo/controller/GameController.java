@@ -151,11 +151,9 @@ public class GameController {
         return isBot != null && currentPlayerIndex < isBot.length && isBot[currentPlayerIndex];
     }
 
-    /** Bot thực hiện 1 lượt hoàn chỉnh: đổ → đi nước 1 → đi nước 2 (nếu còn) → kết thúc */
     private void botTurn() {
         if (gameOver) return;
 
-        // Đổ xúc xắc
         int[] result = dice.roll();
         currentV1 = result[0];
         currentV2 = result[1];
@@ -173,24 +171,17 @@ public class GameController {
             ui.showMessage(playerName + " (Máy) đổ: [" + currentV1 + "] + [" + currentV2 + "]");
         }
 
-        // Nước đi thứ 1
         botDoMove();
         if (gameOver) return;
 
-        // Nước đi thứ 2 (nếu còn xúc xắc chưa dùng)
         if (!v1Used || !v2Used) {
             botDoMove();
         }
         if (gameOver) return;
 
-        // Kết thúc lượt
         endTurn();
     }
 
-    /**
-     * Bot tìm nước đi tốt nhất và thực hiện.
-     * Sau khi đi xong, tự kiểm tra thắng.
-     */
     private void botDoMove() {
         if (gameOver) return;
         List<Horse> moves = getValidMovesForBot();
@@ -218,7 +209,7 @@ public class GameController {
             int cur = best.getHomeStep();
             int chosen = chooseBestClimb(best.getColor(), cur, v1, v2);
             if (chosen == 0) return;
-            tryClimbHome(best, cur + chosen);
+            tryClimbHome(best, cur + 1); // Leo đúng 1 bậc theo luật của Yến
             consumeDice(chosen);
 
         } else if (best.getState() == HorseState.ON_PATH) {
@@ -230,7 +221,6 @@ public class GameController {
 
         ui.renderBoard(board, players);
 
-        // Kiểm tra thắng sau mỗi nước đi
         if (!gameOver && players[currentPlayerIndex].hasWon()) {
             checkWinCondition();
         }
@@ -261,10 +251,13 @@ public class GameController {
     }
 
     private int chooseBestClimb(PlayerColor color, int cur, int v1, int v2) {
-        // Ưu tiên lên cao nhất (bậc 6 trước)
-        if (v1 > 0 && v2 > 0 && cur + v1 + v2 <= 6 && canClimb(color, cur + v1 + v2)) return v1 + v2;
-        if (v1 > 0 && cur + v1 <= 6 && canClimb(color, cur + v1)) return v1;
-        if (v2 > 0 && cur + v2 <= 6 && canClimb(color, cur + v2)) return v2;
+        // Tích hợp luật của ThongLyTieuYen: Phải đổ đúng số của bậc tiếp theo
+        int nextStep = cur + 1;
+        if (nextStep > 6 || isHomeStepOccupied(color, nextStep)) return 0;
+        
+        if (v1 > 0 && v2 > 0 && (v1 + v2) == nextStep) return v1 + v2;
+        if (v1 == nextStep) return v1;
+        if (v2 == nextStep) return v2;
         return 0;
     }
 
@@ -350,11 +343,13 @@ public class GameController {
                         highlightedHorses.add(h);
                 }
             } else if (h.getState() == HorseState.IN_HOME) {
-                int cur = h.getHomeStep();
-                boolean ok = (v1 > 0 && cur + v1 <= 6 && canClimb(h.getColor(), cur + v1))
-                        || (v2 > 0 && cur + v2 <= 6 && canClimb(h.getColor(), cur + v2))
-                        || (v1 > 0 && v2 > 0 && cur + v1 + v2 <= 6 && canClimb(h.getColor(), cur + v1 + v2));
-                if (ok) highlightedHorses.add(h);
+                // Tích hợp logic UC7 của ThongLyTieuYen: Chỉ highlight nếu xúc xắc KHỚP với số bậc tiếp theo
+                int nextStep = h.getHomeStep() + 1;
+                if (nextStep <= 6 && !isHomeStepOccupied(h.getColor(), nextStep)) {
+                    if (v1 == nextStep || v2 == nextStep || (v1 + v2) == nextStep) {
+                        highlightedHorses.add(h);
+                    }
+                }
             } else if (h.getState() == HorseState.ON_PATH) {
                 boolean ok = (v1 > 0 && canMove(h, v1))
                         || (v2 > 0 && canMove(h, v2))
@@ -393,10 +388,9 @@ public class GameController {
             if (currentV1 == currentV2) v1Used = true;
             else { v1Used = true; v2Used = true; }
             ui.showMessage("[>] Xuất quân thành công!");
-            // Không thể thắng từ nước xuất quân, chỉ cần cập nhật highlight
             checkTurnEnd();
 
-            // --- ĐI TRÊN ĐƯỜNG ---
+        // --- ĐI TRÊN ĐƯỜNG ---
         } else if (clicked.getState() == HorseState.ON_PATH) {
             int dist  = clicked.getDistanceTraveled();
             int toGate = 56 - dist;
@@ -441,43 +435,42 @@ public class GameController {
             consumeDice(chosenSteps);
             checkTurnEnd();
 
-            // --- LEO CHUỒNG ĐÍCH ---
+        // --- LEO CHUỒNG ĐÍCH ---
         } else if (clicked.getState() == HorseState.IN_HOME) {
             int cur = clicked.getHomeStep();
+            int nextStep = cur + 1; // Luật Yến: Chỉ được leo 1 bậc kế tiếp
+            
             int v1  = v1Used ? 0 : currentV1;
             int v2  = v2Used ? 0 : currentV2;
 
             List<Integer> choices = new ArrayList<>();
             List<String>  labels  = new ArrayList<>();
 
-            if (v1 > 0 && cur + v1 <= 6 && canClimb(clicked.getColor(), cur + v1)) {
+            if (v1 == nextStep) {
                 choices.add(v1);
-                labels.add("[^] Dùng viên " + v1 + " — lên Bậc " + (cur + v1));
+                labels.add("[^] Dùng viên " + v1 + " — lên Bậc " + nextStep);
             }
-            if (v2 > 0 && cur + v2 <= 6 && canClimb(clicked.getColor(), cur + v2)
-                    && (v2 != v1 || v1Used)) {
+            if (v2 == nextStep && (v2 != v1 || v1Used)) {
                 choices.add(v2);
-                labels.add("[^] Dùng viên " + v2 + " — lên Bậc " + (cur + v2));
+                labels.add("[^] Dùng viên " + v2 + " — lên Bậc " + nextStep);
             }
-            if (v1 > 0 && v2 > 0 && cur + v1 + v2 <= 6 && canClimb(clicked.getColor(), cur + v1 + v2)) {
+            if ((v1 + v2) == nextStep && v1 > 0 && v2 > 0) {
                 choices.add(v1 + v2);
-                labels.add("[^^] Gộp tổng " + (v1 + v2) + " — lên thẳng Bậc " + (cur + v1 + v2));
+                labels.add("[^^] Gộp tổng " + (v1 + v2) + " — lên thẳng Bậc " + nextStep);
             }
 
             if (choices.isEmpty()) return;
             int chosenSteps = choices.get(0);
             if (choices.size() > 1) {
                 String[] arr = labels.toArray(new String[0]);
-                int idx = JOptionPane.showOptionDialog(ui, "Chọn số điểm để leo chuồng:", "Thăng Bậc Chuồng Đích",
+                int idx = JOptionPane.showOptionDialog(ui, "Chọn cách dùng điểm để leo chuồng:", "Thăng Bậc Chuồng Đích",
                         JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, arr, arr[0]);
                 if (idx < 0 || idx >= choices.size()) return;
                 chosenSteps = choices.get(idx);
             }
 
-            tryClimbHome(clicked, cur + chosenSteps);
+            tryClimbHome(clicked, nextStep);
             consumeDice(chosenSteps);
-            // QUAN TRỌNG: chỉ checkTurnEnd nếu chưa game over
-            // (tryClimbHome KHÔNG gọi checkWinCondition nữa — để checkTurnEnd lo)
             if (!gameOver) checkTurnEnd();
         }
     }
@@ -503,24 +496,6 @@ public class GameController {
         return true;
     }
 
-    /**
-     * Kiểm tra ô `targetStep` trong chuồng đích còn trống không.
-     * Ngựa "nhảy thẳng" đến đích — chỉ cần ô đích chưa bị chiếm.
-     */
-    private boolean canClimb(PlayerColor color, int targetStep) {
-        if (targetStep < 1 || targetStep > 6) return false;
-        for (Player p : players) {
-            if (p.getColor() != color) continue;
-            for (Horse h : p.getHorses()) {
-                if (h.getHomeStep() == targetStep
-                        && (h.getState() == HorseState.IN_HOME
-                        || h.getState() == HorseState.FINISHED))
-                    return false;
-            }
-        }
-        return true;
-    }
-
     private void consumeDice(int stepsUsed) {
         if (!v1Used && !v2Used && stepsUsed == currentV1 + currentV2) {
             v1Used = true; v2Used = true;
@@ -533,17 +508,12 @@ public class GameController {
         }
     }
 
-    /**
-     * Điểm duy nhất kiểm tra thắng và chuyển lượt cho người chơi.
-     * KHÔNG gọi checkWinCondition ở nơi khác để tránh double-call.
-     */
     private void checkTurnEnd() {
         if (gameOver) return;
 
-        // Kiểm tra thắng trước
         if (players[currentPlayerIndex].hasWon()) {
             checkWinCondition();
-            return; // dù thắng hay chưa, không làm gì thêm
+            return; 
         }
 
         if (v1Used && v2Used) {
@@ -615,28 +585,37 @@ public class GameController {
         ui.renderBoard(board, players);
     }
 
-    /**
-     * Leo chuồng đích. KHÔNG tự gọi checkWinCondition —
-     * người gọi (checkTurnEnd / botDoMove) sẽ lo việc đó.
-     */
     private void tryClimbHome(Horse h, int targetStep) {
         if (h.getState() == HorseState.ON_PATH) {
             board.clearPosition(h.getCurrentPosition());
             h.setCurrentPosition(-1);
         }
+
         h.setHomeStep(targetStep);
         if (targetStep == 6) {
             h.setState(HorseState.FINISHED);
-            ui.showMessage("[v] Ngựa " + h.getColor() + " về đích Bậc 6! Hoàn thành!");
+            ui.showMessage("✅ Ngựa " + h.getColor() + " về đích Bậc 6! Hoàn thành!");
         } else {
             h.setState(HorseState.IN_HOME);
-            ui.showMessage("[+] Ngựa " + h.getColor() + " lên Bậc " + targetStep + ".");
+            ui.showMessage("✅ Ngựa " + h.getColor() + " lên bậc " + targetStep + " trong chuồng.");
         }
         ui.renderBoard(board, players);
     }
 
+    private boolean isHomeStepOccupied(PlayerColor color, int step) {
+        for (Player p : players) {
+            if (p.getColor() == color) {
+                for (Horse h : p.getHorses()) {
+                    if ((h.getState() == HorseState.IN_HOME || h.getState() == HorseState.FINISHED)
+                            && h.getHomeStep() == step) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     // =========================================================================
-    // KIỂM TRA THẮNG — chỉ được gọi từ checkTurnEnd() hoặc botDoMove()
+    // KIỂM TRA THẮNG
     // =========================================================================
     public boolean checkWinCondition() {
         Player current = players[currentPlayerIndex];
@@ -652,7 +631,7 @@ public class GameController {
                 if (p.hasWon()) finishedCount++;
             }
 
-            if (finishedCount >= 3) {
+            if (finishedCount >= players.length - 1) { // Tự động xử lý kết thúc game cho tùy chọn số lượng người chơi khác nhau
                 for (Player p : players) {
                     if (!rankings.contains(p.getName())) {
                         rankings.add(p.getName());
@@ -666,6 +645,7 @@ public class GameController {
                 }
 
                 ui.showPopup(scoreboard.toString());
+                gameOver = true;
                 restartGame();
                 return true;
             } else {
@@ -694,7 +674,7 @@ public class GameController {
     }
 
     // Getters
-    public Board getBoard()                   { return board; }
+    public Board getBoard()                 { return board; }
     public Player[] getPlayers()              { return players; }
     public List<Horse> getHighlightedHorses() { return highlightedHorses; }
     public int getCurrentPlayerIndex()        { return currentPlayerIndex; }
