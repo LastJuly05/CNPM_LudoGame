@@ -7,8 +7,10 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class BoardPanel extends JPanel {
     private Board board;
@@ -16,7 +18,6 @@ public class BoardPanel extends JPanel {
     private Point[] pathCoords;
     private GameController controller;
 
-    // Màu sắc UI đẹp
     private static final Color COLOR_RED = new Color(220, 50, 50);
     private static final Color COLOR_BLUE = new Color(50, 100, 220);
     private static final Color COLOR_GREEN = new Color(50, 180, 80);
@@ -24,7 +25,8 @@ public class BoardPanel extends JPanel {
     private static final Color COLOR_BG = new Color(240, 235, 220);
     private static final Color COLOR_PATH = new Color(255, 255, 255);
     private static final Color COLOR_SAFE = new Color(200, 230, 255);
-    private static final Color COLOR_HIGHLIGHT = new Color(255, 215, 0);
+    private static final Color COLOR_INACTIVE_BASE = new Color(160, 160, 160); // Màu chuồng không dùng
+
 
     public BoardPanel() {
         initPathCoordinates();
@@ -49,6 +51,14 @@ public class BoardPanel extends JPanel {
         this.board = board;
         this.players = players;
         repaint();
+    }
+  // Trả về tập màu đang thực sự tham gia game
+    private Set<PlayerColor> getActiveColors() {
+        Set<PlayerColor> active = new HashSet<>();
+        if (players != null) {
+            for (Player p : players) active.add(p.getColor());
+        }
+        return active;
     }
 
     private void handleMouseClick(int mouseX, int mouseY) {
@@ -80,7 +90,7 @@ public class BoardPanel extends JPanel {
                         px = ox + gridP.x * cs;
                         py = oy + gridP.y * cs;
                     }
-                } else if (h.getState() == HorseState.IN_HOME) {
+                } else if (h.getState() == HorseState.IN_HOME ) {
                     Point hp = getHomePathCoords(p.getColor(), h.getHomeStep());
                     px = ox + hp.x * cs;
                     py = oy + hp.y * cs;
@@ -124,17 +134,18 @@ public class BoardPanel extends JPanel {
         int ox = (getWidth() - size) / 2;
         int oy = (getHeight() - size) / 2;
 
+        Set<PlayerColor> active = getActiveColors();
         // Nền bàn cờ
         g2d.setColor(new Color(200, 190, 170));
         g2d.fillRoundRect(ox - 5, oy - 5, cs * 15 + 10, cs * 15 + 10, 12, 12);
         g2d.setColor(COLOR_BG);
         g2d.fillRect(ox, oy, cs * 15, cs * 15);
 
-        // Vẽ 4 chuồng màu (base)
-        drawBase(g2d, ox, oy, cs, 0, 0, COLOR_RED, "ĐỎ");
-        drawBase(g2d, ox, oy, cs, 9, 0, COLOR_BLUE, "XANH");
-        drawBase(g2d, ox, oy, cs, 9, 9, COLOR_GREEN, "LÁ");
-        drawBase(g2d, ox, oy, cs, 0, 9, COLOR_YELLOW, "VÀNG");
+       // 4 chuồng — ẩn (xám) nếu màu đó không tham gia
+        drawBase(g2d, ox, oy, cs, 0, 0, PlayerColor.RED,    "ĐỎ",   active);
+        drawBase(g2d, ox, oy, cs, 9, 0, PlayerColor.BLUE,   "LAM",  active);
+        drawBase(g2d, ox, oy, cs, 9, 9, PlayerColor.GREEN,  "LỤC",   active);
+        drawBase(g2d, ox, oy, cs, 0, 9, PlayerColor.YELLOW, "VÀNG", active);
 
         // Vẽ 56 ô vòng ngoài
         for (int i = 0; i < 56; i++) {
@@ -159,12 +170,12 @@ public class BoardPanel extends JPanel {
             g2d.drawString(String.valueOf(i), ox + p.x * cs + 2, oy + p.y * cs + cs - 2);
         }
 
-        // Đường lên chuồng đích (home stretch)
+        // Đường lên chuồng đích — ẩn/mờ nếu màu không tham gia
         for (int i = 1; i <= 6; i++) {
-            drawHomeCell(g2d, ox + 7 * cs, oy + i * cs, cs, COLOR_RED, i); // Đỏ đi xuống
-            drawHomeCell(g2d, ox + (14 - i) * cs, oy + 7 * cs, cs, COLOR_BLUE, i);
-            drawHomeCell(g2d, ox + 7 * cs, oy + (14 - i) * cs, cs, COLOR_GREEN, i);
-            drawHomeCell(g2d, ox + i * cs, oy + 7 * cs, cs, COLOR_YELLOW, i);
+            drawHomeCell(g2d, ox + 7 * cs,        oy + i * cs,        cs, COLOR_RED,    i, active.contains(PlayerColor.RED));
+            drawHomeCell(g2d, ox + (14 - i) * cs, oy + 7 * cs,        cs, COLOR_BLUE,   i, active.contains(PlayerColor.BLUE));
+            drawHomeCell(g2d, ox + 7 * cs,        oy + (14 - i) * cs, cs, COLOR_GREEN,  i, active.contains(PlayerColor.GREEN));
+            drawHomeCell(g2d, ox + i * cs,         oy + 7 * cs,       cs, COLOR_YELLOW, i, active.contains(PlayerColor.YELLOW));
         }
 
         // Trung tâm (tam giác gặp nhau)
@@ -177,31 +188,53 @@ public class BoardPanel extends JPanel {
         }
     }
 
-    private void drawBase(Graphics2D g2d, int ox, int oy, int cs, int col, int row, Color color, String label) {
+    private void drawBase(Graphics2D g2d, int ox, int oy, int cs,
+                          int col, int row, PlayerColor color, String label,
+                          Set<PlayerColor> active) {
         int x = ox + col * cs;
         int y = oy + row * cs;
         int w = 6 * cs, h = 6 * cs;
 
+        boolean isActive = active.contains(color);
+        Color baseColor = isActive ? getAwtColor(color) : COLOR_INACTIVE_BASE;
+
         // Nền màu chuồng
-        g2d.setColor(color);
+        g2d.setColor(baseColor);
         g2d.fillRect(x, y, w, h);
-        g2d.setColor(color.darker());
+        g2d.setColor(baseColor.darker());
         g2d.drawRect(x, y, w, h);
 
         // Vùng trắng bên trong (khu chứa ngựa)
         int inner = 4 * cs;
         int ix = x + cs, iy = y + cs;
-        g2d.setColor(new Color(255, 255, 255, 180));
+        g2d.setColor(isActive ? new Color(255, 255, 255, 180) : new Color(200, 200, 200, 120));
         g2d.fillRoundRect(ix, iy, inner, inner, 12, 12);
-        g2d.setColor(color.darker());
+        g2d.setColor(baseColor.darker());
         g2d.drawRoundRect(ix, iy, inner, inner, 12, 12);
 
-        // Nhãn tên
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font("Arial", Font.BOLD, Math.max(9, cs / 2)));
+        // Nhãn tên — dùng màu tối trên nền màu sáng để đọc rõ, không bị lỗi font
+        // Vẽ bóng đen trước để chữ nổi trên mọi nền
+        int fontSize = Math.max(12, cs * 2 / 3);
+        g2d.setFont(new Font("Arial", Font.BOLD, fontSize));
         FontMetrics fm = g2d.getFontMetrics();
         int lw = fm.stringWidth(label);
-        g2d.drawString(label, x + (w - lw) / 2, y + cs - 4);
+        int lx = x + (w - lw) / 2;
+        int ly = y + h / 2 + fm.getAscent() / 2; // Giữa chuồng theo chiều dọc
+        // Bóng đen
+        g2d.setColor(new Color(0, 0, 0, 120));
+        g2d.drawString(label, lx + 2, ly + 2);
+        // Chữ trắng
+        g2d.setColor(Color.WHITE);
+        g2d.drawString(label, lx, ly);
+
+        // Nếu không active, vẽ chéo "không dùng"
+        if (!isActive) {
+            g2d.setColor(new Color(0, 0, 0, 40));
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawLine(x + 4, y + 4, x + w - 4, y + h - 4);
+            g2d.drawLine(x + w - 4, y + 4, x + 4, y + h - 4);
+            g2d.setStroke(new BasicStroke(1));
+        }
     }
 
     private void drawCell(Graphics2D g2d, int x, int y, int size, Color bgColor) {
@@ -211,13 +244,12 @@ public class BoardPanel extends JPanel {
         g2d.drawRect(x, y, size, size);
     }
 
-    private void drawHomeCell(Graphics2D g2d, int x, int y, int size, Color color, int step) {
-        // Màu nhạt dần về trung tâm
-        float alpha = 0.3f + (step / 6f) * 0.5f;
-        Color c = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int) (alpha * 255));
+    private void drawHomeCell(Graphics2D g2d, int x, int y, int size, Color color, int step, boolean active) {
+        float alpha = active ? (0.3f + (step / 6f) * 0.5f) : 0.12f;
+        Color c = new Color(color.getRed(), color.getGreen(), color.getBlue(), (int)(alpha * 255));
         g2d.setColor(c);
         g2d.fillRect(x, y, size, size);
-        g2d.setColor(color.darker());
+        g2d.setColor(active ? color.darker() : new Color(150, 150, 150));
         g2d.drawRect(x, y, size, size);
     }
 
