@@ -1,20 +1,20 @@
 package ludo;
 
+import javax.swing.SwingUtilities;
 import ludo.controller.GameController;
 import ludo.view.GameUI;
-import javax.swing.SwingUtilities;
 
 public class main {
     public static void main(String[] args) {
-        // Đảm bảo UI chạy trên Event Dispatch Thread của Swing
         SwingUtilities.invokeLater(() -> {
             GameController controller = new GameController();
             GameUI ui = new GameUI(controller);
             controller.setUI(ui);
             ui.setVisible(true);
             
-            // Bắt đầu game
-            controller.restartGame();
+            if (ui != null) {
+                ui.showPlayerSelectionDialog();
+            }
         });
     }
 }
