@@ -11,10 +11,8 @@ public class main {
             GameUI ui = new GameUI(controller);
             controller.setUI(ui);
             ui.setVisible(true);
-            
-            if (ui != null) {
-                ui.showPlayerSelectionDialog();
-            }
+            // startGame() không còn dùng — GameUI tự hỏi số người chơi
+            // rồi gọi controller.startNewGame(playerCount)
         });
     }
 }

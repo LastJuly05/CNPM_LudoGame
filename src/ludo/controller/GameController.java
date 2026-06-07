@@ -354,16 +354,15 @@ public class GameController {
 
         // Kế thừa xử lý chuyển lượt tự động từ NgoThanhVy nếu bị kẹt
         if (highlightedHorses.isEmpty()) {
-            ui.showMessage("Không có nước đi hợp lệ! Tự động chuyển lượt.");
-            v1Used = true; v2Used = true;
-            javax.swing.SwingUtilities.invokeLater(() -> {
-                Timer t = new Timer(500, e -> { 
-                    ((Timer) e.getSource()).stop(); 
-                    endTurn(); 
-                });
-                t.setRepeats(false);
-                t.start();
-            });
+            // Neu da thang (dung 1 vien ve dich, vien con lai khong dung duoc)
+            if (players[currentPlayerIndex].hasWon()) {
+                endTurn(); // endTurn se phat hien hasWon va goi checkWinCondition
+                return;
+            }
+            ui.showMessage("Không có nước đi! Mất lượt...");
+            Timer t = new Timer(1200, e -> { ((Timer) e.getSource()).stop(); endTurn(); });
+            t.setRepeats(false);
+            t.start();
         }
     }
 
@@ -510,9 +509,19 @@ public class GameController {
 
     private void endTurn() {
         if (gameOver) return;
-
-        boolean giveBonus = bonusTurnEarned && !players[currentPlayerIndex].hasWon();
-
+        // Kiem tra thang truoc khi ket thuc luot
+        // (truong hop con xuc xac nhung khong di duoc, nguoi vua thang bang vien truoc)
+        if (players[currentPlayerIndex].hasWon()) {
+            hasRolled = false;
+            v1Used = false; v2Used = false;
+            bonusTurnEarned = false;
+            highlightedHorses.clear();
+            dice.reset();
+            ui.renderBoard(board, players);
+            checkWinCondition();
+            return;
+        }
+        boolean giveBonus = bonusTurnEarned;
         hasRolled = false;
         v1Used = false;
         v2Used = false;
@@ -598,9 +607,12 @@ public class GameController {
         }
 
         h.setHomeStep(targetStep);
-        if (targetStep == 6) {
+
+        // FINISHED nếu: đứng ở bậc 6, hoặc bậc trên (targetStep+1) đã bị chặn bởi ngựa khác
+        boolean blocked = targetStep == 6 || isHomeStepOccupied(h, targetStep + 1);
+        if (blocked) {
             h.setState(HorseState.FINISHED);
-            ui.showMessage("✅ Ngựa " + h.getColor() + " về đích Bậc 6! Hoàn thành!");
+            ui.showMessage("[v] Ngựa " + h.getColor() + " về đích Bậc " + targetStep + "! Hoàn thành!");
         } else {
             h.setState(HorseState.IN_HOME);
             ui.showMessage("✅ Ngựa " + h.getColor() + " lên bậc " + targetStep + " trong chuồng.");
@@ -608,54 +620,82 @@ public class GameController {
         ui.renderBoard(board, players);
     }
 
-    private boolean isHomeStepOccupied(PlayerColor color, int step) {
+    /**
+     * Kiểm tra xem bậc chuồng đích 'step' của cùng màu đã có ngựa khác chưa.
+     */
+    private boolean isHomeStepOccupied(Horse mover, int step) {
+        if (step < 1 || step > 6) return false;
         for (Player p : players) {
-            if (p.getColor() == color) {
-                for (Horse h : p.getHorses()) {
-                    if ((h.getState() == HorseState.IN_HOME || h.getState() == HorseState.FINISHED)
-                            && h.getHomeStep() == step) return true;
+            if (p.getColor() != mover.getColor()) continue;
+            for (Horse other : p.getHorses()) {
+                if (other == mover) continue;
+                if ((other.getState() == HorseState.IN_HOME || other.getState() == HorseState.FINISHED)
+                        && other.getHomeStep() == step) {
+                    return true;
                 }
             }
         }
         return false;
     }
 
+    // =========================================================================
+    // KIỂM TRA THẮNG — chỉ được gọi từ checkTurnEnd() hoặc botDoMove()
+    // =========================================================================
     public boolean checkWinCondition() {
+        if (gameOver) return false;
         Player current = players[currentPlayerIndex];
+        if (!current.hasWon() || rankings.contains(current.getName())) return false;
 
-        if (current.hasWon() && !rankings.contains(current.getName())) {
-            rankings.add(current.getName());
-            int currentRank = rankings.size();
-            ui.showPopup("🏆 Chúc mừng người chơi [" + current.getName() + "] đã VỀ ĐÍCH! Đạt Hạng #" + currentRank);
+        rankings.add(current.getName());
 
-            int finishedCount = 0;
-            for (Player p : players) {
-                if (p.hasWon()) finishedCount++;
-            }
-
-            if (finishedCount >= players.length - 1) { 
-                for (Player p : players) {
-                    if (!rankings.contains(p.getName())) {
-                        rankings.add(p.getName());
-                    }
-                }
-                
-                botThinking = false;
-                StringBuilder scoreboard = new StringBuilder("🎮 TRẬN ĐẤU KẾT THÚC HOÀN TOÀN! 🎮\n\n");
-                scoreboard.append("🏆 BẢNG XẾP HẠNG CHUNG CUỘC:\n");
-                for (int i = 0; i < rankings.size(); i++) {
-                    scoreboard.append("  Hạng ").append(i + 1).append(": ").append(rankings.get(i)).append("\n");
-                }
-
-                ui.showPopup(scoreboard.toString());
-                gameOver = true;
-                restartGame();
-                return true;
-            } else {
-                nextPlayerTurn();
-            }
+        // Dem so nguoi chua ve dich
+        int notDone = 0;
+        for (Player p : players) {
+            if (!p.hasWon()) notDone++;
         }
-        return false;
+
+        // Ket thuc game khi chi con <= 1 nguoi chua xong
+        // (voi 2 nguoi: notDone=1 la nguoi kia chua xong -> ket thuc luon)
+        // (voi 3-4 nguoi: notDone=1 la nguoi cuoi chua xong -> ket thuc)
+        boolean gameEnds = (notDone <= 1);
+
+        if (gameEnds) {
+            gameOver = true;
+            // Them nguoi cuoi vao bang xep hang
+            for (Player p : players) {
+                if (!rankings.contains(p.getName())) rankings.add(p.getName());
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append("================================\n");
+            sb.append("     TRAN DAU KET THUC!         \n");
+            sb.append("================================\n\n");
+            sb.append("   BANG XEP HANG:\n\n");
+            String[] medals = {
+                    "[W] HANG #1 (VO DICH):",
+                    "    Hang #2          :",
+                    "    Hang #3          :",
+                    "    Hang #4          :"
+            };
+            for (int i = 0; i < rankings.size(); i++) {
+                sb.append(medals[Math.min(i, medals.length-1)])
+                        .append(" ").append(rankings.get(i)).append("\n");
+            }
+            ui.showPopup(sb.toString());
+            restartGame();
+            return true;
+        } else {
+            // Thong bao trung gian roi choi tiep
+            ui.showPopup("[W] " + current.getName()
+                    + " ve dich! Hang #" + rankings.size()
+                    + "\n\nCon " + notDone + " nguoi dang choi tiep...");
+            hasRolled = false;
+            v1Used = false; v2Used = false;
+            bonusTurnEarned = false;
+            highlightedHorses.clear();
+            dice.reset();
+            nextPlayerTurn();
+            return false;
+        }
     }
 
     // Getters
