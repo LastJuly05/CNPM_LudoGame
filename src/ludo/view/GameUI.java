@@ -261,6 +261,10 @@ public class GameUI extends JFrame {
         return btn;
     }
 
+    /**
+     * [UC4 - Bước 4.1.6] Hệ thống đánh dấu đã tiêu thụ điểm xúc xắc, kích hoạt vẽ lại giao diện bàn cờ và thông báo thưởng thêm một lượt gieo mới cho người chơi.
+     * [UC7 - Bước 7.1.6] Hệ thống gọi hàm cập nhật giao diện đồ họa hiển thị trạng thái mới của chuồng đích lên màn hình.
+     */
     public void renderBoard(Board board, Player[] players) { boardPanel.updateData(board, players); }
 
     public void updateDiceDisplay(int v1, int v2) {
@@ -271,6 +275,12 @@ public class GameUI extends JFrame {
 
     public void resetDiceDisplay() { dicePanel.setValues(0, 0); dicePanel.setSpecial(false); }
 
+    /**
+     * [UC4 - Bước 4.2.2] Hệ thống hiển thị hiệu ứng thông báo: "💥 Đã đá ngựa đối phương về chuồng!".
+     * [UC4 - Bước 4.3.1] Hệ thống chặn hành vi, hiển thị thông báo lỗi: "Ô xuất phát đã bị chặn bởi quân của bạn!".
+     * [UC7 - Bước 7.2.2] Hệ thống phát đi thông báo chúc mừng trực quan: "🎉 Ngựa đã VỀ ĐÍCH thành công!".
+     * [UC7 - Bước 7.3.1] Hệ thống phát âm thanh/hiển thị cảnh báo lỗi nghiệp vụ: "Bậc đích đã bị chặn bởi quân đứng trước!".
+     */
     public void showMessage(String message) {
         String safe = message
                 .replace("⭐", "[*]").replace("🎲", "[~]").replace("🚀", "[>]")
