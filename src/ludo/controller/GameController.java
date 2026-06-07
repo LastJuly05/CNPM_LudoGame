@@ -2,8 +2,8 @@ package ludo.controller;
 
 import ludo.model.*;
 import ludo.view.GameUI;
-import javax.swing.JOptionPane;
 import javax.swing.Timer;
+import javax.swing.JOptionPane;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,25 +16,30 @@ public class GameController {
 
     private int playerCount = 4;
     private boolean[] isBot;
-    private static final int BOT_DELAY_MS = 800;
+    // Tốc độ Bot được giữ theo tùy chỉnh của NgoThanhVy để game mượt hơn
+    private static final int BOT_DELAY_MS = 150; 
 
     private boolean hasRolled = false;
     private int currentV1 = 0, currentV2 = 0;
     private boolean v1Used = false;
     private boolean v2Used = false;
-    private boolean bonusTurnEarned = false;
+    
+    private boolean bonusTurnEarned = false; 
     private boolean botThinking = false;
     private boolean gameOver = false;
 
     private List<Horse> highlightedHorses = new ArrayList<>();
     private List<String> rankings = new ArrayList<>();
 
-    public GameController() {}
+    public GameController() {
+        initGame("4b");
+    }
 
-    public void setUI(GameUI ui) { this.ui = ui; }
+    public void setUI(GameUI ui) { 
+        this.ui = ui; 
+    }
 
-    public void startNewGame(String mode) {
-        initGame(mode);
+    public void startGame() {
         if (ui != null) {
             ui.resetDiceDisplay();
             ui.showMessage("Trận đấu bắt đầu! Lượt của: " + players[0].getName());
@@ -43,97 +48,97 @@ public class GameController {
         }
     }
 
-    public void startNewGame(int count) { startNewGame(count + "p"); }
+    public void startNewGame(String mode) {
+        initGame(mode);
+        if (ui != null) {
+            ui.resetDiceDisplay();
+            String label = isCurrentBot() ? " (Máy)" : " (Mời Đổ)";
+            ui.showMessage("Trận đấu bắt đầu! Lượt của: " + players[0].getName() + label);
+            ui.renderBoard(board, players);
+            scheduleBot();
+        }
+    }
+
+    public void startNewGame(int count) { 
+        startNewGame(count + "p"); 
+    }
 
     private void initGame(String mode) {
         board = new Board();
         dice  = new Dice();
         botThinking = false;
         gameOver = false;
-
-        switch (mode) {
-            case "2p":
-                playerCount = 2;
-                players = new Player[]{
-                        new Player("Đỏ",  PlayerColor.RED),
-                        new Player("Lục", PlayerColor.GREEN)
-                };
-                isBot = new boolean[]{false, false};
-                break;
-            case "3p":
-                playerCount = 3;
-                players = new Player[]{
-                        new Player("Đỏ",  PlayerColor.RED),
-                        new Player("Lam", PlayerColor.BLUE),
-                        new Player("Lục", PlayerColor.GREEN)
-                };
-                isBot = new boolean[]{false, false, false};
-                break;
-            case "4p":
-                playerCount = 4;
-                players = new Player[]{
-                        new Player("Đỏ",   PlayerColor.RED),
-                        new Player("Lam",  PlayerColor.BLUE),
-                        new Player("Lục",  PlayerColor.GREEN),
-                        new Player("Vàng", PlayerColor.YELLOW)
-                };
-                isBot = new boolean[]{false, false, false, false};
-                break;
-            case "2b":
-                playerCount = 2;
-                players = new Player[]{
-                        new Player("Người (Đỏ)", PlayerColor.RED),
-                        new Player("Máy (Lục)",  PlayerColor.GREEN)
-                };
-                isBot = new boolean[]{false, true};
-                break;
-            case "3b":
-                playerCount = 3;
-                players = new Player[]{
-                        new Player("Người (Đỏ)", PlayerColor.RED),
-                        new Player("Máy (Lam)",  PlayerColor.BLUE),
-                        new Player("Máy (Lục)",  PlayerColor.GREEN)
-                };
-                isBot = new boolean[]{false, true, true};
-                break;
-            case "4b":
-                playerCount = 4;
-                players = new Player[]{
-                        new Player("Người (Đỏ)",  PlayerColor.RED),
-                        new Player("Máy (Lam)",   PlayerColor.BLUE),
-                        new Player("Máy (Lục)",   PlayerColor.GREEN),
-                        new Player("Máy (Vàng)",  PlayerColor.YELLOW)
-                };
-                isBot = new boolean[]{false, true, true, true};
-                break;
-            default: // "bot"
-                playerCount = 4;
-                players = new Player[]{
-                        new Player("Máy Đỏ",   PlayerColor.RED),
-                        new Player("Máy Lam",  PlayerColor.BLUE),
-                        new Player("Máy Lục",  PlayerColor.GREEN),
-                        new Player("Máy Vàng", PlayerColor.YELLOW)
-                };
-                isBot = new boolean[]{true, true, true, true};
-                break;
-        }
-
-        currentPlayerIndex = 0;
+        
         hasRolled = false;
         currentV1 = 0; currentV2 = 0;
         v1Used = false; v2Used = false;
         bonusTurnEarned = false;
         highlightedHorses.clear();
         rankings.clear();
+        currentPlayerIndex = 0;
+
+        switch (mode) {
+            case "2p":
+                playerCount = 2;
+                players = new Player[]{
+                    new Player("Đỏ",  PlayerColor.RED),
+                    new Player("Lục", PlayerColor.GREEN)
+                };
+                isBot = new boolean[]{false, false};
+                break;
+            case "3p":
+                playerCount = 3;
+                players = new Player[]{
+                    new Player("Đỏ",  PlayerColor.RED),
+                    new Player("Lam", PlayerColor.BLUE),
+                    new Player("Lục", PlayerColor.GREEN)
+                };
+                isBot = new boolean[]{false, false, false};
+                break;
+            case "2b":
+                playerCount = 2;
+                players = new Player[]{
+                    new Player("Người (Đỏ)", PlayerColor.RED),
+                    new Player("Máy (Lục)",  PlayerColor.GREEN)
+                };
+                isBot = new boolean[]{false, true};
+                break;
+            case "3b":
+                playerCount = 3;
+                players = new Player[]{
+                    new Player("Người (Đỏ)", PlayerColor.RED),
+                    new Player("Máy (Lam)",  PlayerColor.BLUE),
+                    new Player("Máy (Lục)",  PlayerColor.GREEN)
+                };
+                isBot = new boolean[]{false, true, true};
+                break;
+            case "4b":
+                playerCount = 4;
+                players = new Player[]{
+                    new Player("Người (Đỏ)",  PlayerColor.RED),
+                    new Player("Máy (Lam)",   PlayerColor.BLUE),
+                    new Player("Máy (Lục)",   PlayerColor.GREEN),
+                    new Player("Máy (Vàng)",  PlayerColor.YELLOW)
+                };
+                isBot = new boolean[]{false, true, true, true};
+                break;
+            case "all_bots":
+            default:
+                playerCount = 4;
+                players = new Player[]{
+                    new Player("Máy Đỏ",   PlayerColor.RED),
+                    new Player("Máy Lam",  PlayerColor.BLUE),
+                    new Player("Máy Lục",  PlayerColor.GREEN),
+                    new Player("Máy Vàng", PlayerColor.YELLOW)
+                };
+                isBot = new boolean[]{true, true, true, true};
+                break;
+        }
     }
 
     public void restartGame() {
         if (ui != null) ui.showPlayerSelectionDialog();
     }
-
-    // =========================================================================
-    // BOT
-    // =========================================================================
 
     private void scheduleBot() {
         if (gameOver || !isCurrentBot() || botThinking) return;
@@ -158,11 +163,11 @@ public class GameController {
         currentV1 = result[0];
         currentV2 = result[1];
         hasRolled = true;
-        v1Used = false;
-        v2Used = false;
+        v1Used = false; v2Used = false;
         bonusTurnEarned = dice.isDeployable();
-
+        
         ui.updateDiceDisplay(currentV1, currentV2);
+
         String playerName = players[currentPlayerIndex].getName();
         if (bonusTurnEarned) {
             ui.showMessage("[*] ĐIỂM ĐẶC BIỆT! " + playerName
@@ -191,7 +196,7 @@ public class GameController {
         int v2 = v2Used ? 0 : currentV2;
 
         Horse best = null;
-        int bestScore = -1;
+        int bestScore = -1000;
         for (Horse h : moves) {
             int score = scoreBotMove(h, v1, v2);
             if (score > bestScore) { bestScore = score; best = h; }
@@ -209,7 +214,7 @@ public class GameController {
             int cur = best.getHomeStep();
             int chosen = chooseBestClimb(best.getColor(), cur, v1, v2);
             if (chosen == 0) return;
-            tryClimbHome(best, cur + 1); // Leo đúng 1 bậc theo luật của Yến
+            tryClimbHome(best, cur + 1); // Đảm bảo luật của Yến: chỉ leo đúng 1 bậc
             consumeDice(chosen);
 
         } else if (best.getState() == HorseState.ON_PATH) {
@@ -251,7 +256,6 @@ public class GameController {
     }
 
     private int chooseBestClimb(PlayerColor color, int cur, int v1, int v2) {
-        // Tích hợp luật của ThongLyTieuYen: Phải đổ đúng số của bậc tiếp theo
         int nextStep = cur + 1;
         if (nextStep > 6 || isHomeStepOccupied(color, nextStep)) return 0;
         
@@ -278,16 +282,16 @@ public class GameController {
     }
 
     private int scoreBotMove(Horse h, int v1, int v2) {
-        if (h.getState() == HorseState.IN_BASE) return 10;
-        if (h.getState() == HorseState.IN_HOME) return 80 + h.getHomeStep();
+        if (h.getState() == HorseState.IN_BASE) return 100;
+        if (h.getState() == HorseState.IN_HOME) return 500 + h.getHomeStep();
         if (h.getState() == HorseState.ON_PATH) {
-            int base = 20 + h.getDistanceTraveled();
+            int base = h.getDistanceTraveled();
             for (int steps : new int[]{v1, v2, v1 + v2}) {
                 if (steps <= 0 || !canMove(h, steps)) continue;
                 int dest = (h.getCurrentPosition() + steps) % 56;
                 Horse occ = board.getHorseAt(dest);
                 if (occ != null && occ.getColor() != h.getColor() && !board.isSafeCell(dest)) {
-                    base += 50; break;
+                    base += 250; break;
                 }
             }
             return base;
@@ -295,13 +299,8 @@ public class GameController {
         return 0;
     }
 
-    // =========================================================================
-    // ĐỔ XÚC XẮC (người chơi)
-    // =========================================================================
     public void rollDiceRequest() {
-        if (gameOver) return;
-        if (isCurrentBot()) { ui.showMessage("Đang là lượt máy!"); return; }
-        if (hasRolled) { ui.showMessage("Bạn đã đổ rồi! Hãy bấm chọn quân cờ để di chuyển."); return; }
+        if (gameOver || isCurrentBot() || hasRolled) return;
 
         int[] result = dice.roll();
         currentV1 = result[0];
@@ -309,22 +308,15 @@ public class GameController {
         hasRolled = true;
         v1Used = false;
         v2Used = false;
+
         bonusTurnEarned = dice.isDeployable();
 
         ui.updateDiceDisplay(currentV1, currentV2);
-        if (bonusTurnEarned) {
-            ui.showMessage("[*] ĐIỂM ĐẶC BIỆT! " + players[currentPlayerIndex].getName()
-                    + " đổ [" + currentV1 + "] + [" + currentV2 + "] — Thưởng thêm 1 lượt đổ!");
-        } else {
-            ui.showMessage(players[currentPlayerIndex].getName()
-                    + " đổ được: [" + currentV1 + "] + [" + currentV2 + "]");
-        }
+        ui.showMessage(players[currentPlayerIndex].getName() + " đổ được: [" + currentV1 + "] và [" + currentV2 + "]");
+        
         updateHighlightedHorses();
     }
 
-    // =========================================================================
-    // HIGHLIGHT (chỉ dùng cho người chơi)
-    // =========================================================================
     private void updateHighlightedHorses() {
         highlightedHorses.clear();
         if (!hasRolled || gameOver) { ui.renderBoard(board, players); return; }
@@ -343,7 +335,7 @@ public class GameController {
                         highlightedHorses.add(h);
                 }
             } else if (h.getState() == HorseState.IN_HOME) {
-                // Tích hợp logic UC7 của ThongLyTieuYen: Chỉ highlight nếu xúc xắc KHỚP với số bậc tiếp theo
+                // Tích hợp logic UC7 của Yến: Chỉ highlight nếu xúc xắc KHỚP với số bậc tiếp theo
                 int nextStep = h.getHomeStep() + 1;
                 if (nextStep <= 6 && !isHomeStepOccupied(h.getColor(), nextStep)) {
                     if (v1 == nextStep || v2 == nextStep || (v1 + v2) == nextStep) {
@@ -360,26 +352,25 @@ public class GameController {
 
         ui.renderBoard(board, players);
 
+        // Kế thừa xử lý chuyển lượt tự động từ NgoThanhVy nếu bị kẹt
         if (highlightedHorses.isEmpty()) {
-            ui.showMessage("Không có nước đi! Mất lượt...");
-            Timer t = new Timer(1200, e -> { ((Timer) e.getSource()).stop(); endTurn(); });
-            t.setRepeats(false);
-            t.start();
+            ui.showMessage("Không có nước đi hợp lệ! Tự động chuyển lượt.");
+            v1Used = true; v2Used = true;
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                Timer t = new Timer(500, e -> { 
+                    ((Timer) e.getSource()).stop(); 
+                    endTurn(); 
+                });
+                t.setRepeats(false);
+                t.start();
+            });
         }
     }
 
-    // =========================================================================
-    // CLICK NGỰA (người chơi)
-    // =========================================================================
     public void handleHorseClick(Horse clicked) {
-        if (gameOver || isCurrentBot()) return;
-        if (!hasRolled) { ui.showMessage("Hãy đổ xúc xắc trước!"); return; }
-        if (clicked.getColor() != players[currentPlayerIndex].getColor()) {
-            ui.showMessage("Không phải quân cờ của bạn!"); return;
-        }
-        if (!highlightedHorses.contains(clicked)) {
-            ui.showMessage("Quân này không thể đi với số điểm hiện tại!"); return;
-        }
+        if (gameOver || isCurrentBot() || !hasRolled) return;
+        if (clicked.getColor() != players[currentPlayerIndex].getColor()) return;
+        if (!highlightedHorses.contains(clicked)) return;
 
         // --- XUẤT QUÂN ---
         if (clicked.getState() == HorseState.IN_BASE) {
@@ -390,7 +381,7 @@ public class GameController {
             ui.showMessage("[>] Xuất quân thành công!");
             checkTurnEnd();
 
-        // --- ĐI TRÊN ĐƯỜNG ---
+        // --- ĐI TRÊN ĐƯỜNG (Giữ lại Pop-up chọn của Phát) ---
         } else if (clicked.getState() == HorseState.ON_PATH) {
             int dist  = clicked.getDistanceTraveled();
             int toGate = 56 - dist;
@@ -404,21 +395,15 @@ public class GameController {
 
             if (canV1) {
                 choices.add(currentV1);
-                labels.add(currentV1 == toGate
-                        ? "[D] Vào Cửa Chuồng (viên " + currentV1 + ")"
-                        : "[>] Đi " + currentV1 + " bước (viên 1)");
+                labels.add(currentV1 == toGate ? "[D] Vào Cửa Chuồng (viên " + currentV1 + ")" : "[>] Đi " + currentV1 + " bước (viên 1)");
             }
             if (canV2 && !(currentV2 == currentV1 && !v1Used)) {
                 choices.add(currentV2);
-                labels.add(currentV2 == toGate
-                        ? "[D] Vào Cửa Chuồng (viên " + currentV2 + ")"
-                        : "[>] Đi " + currentV2 + " bước (viên 2)");
+                labels.add(currentV2 == toGate ? "[D] Vào Cửa Chuồng (viên " + currentV2 + ")" : "[>] Đi " + currentV2 + " bước (viên 2)");
             }
             if (canSum) {
                 choices.add(currentV1 + currentV2);
-                labels.add((currentV1 + currentV2) == toGate
-                        ? "[D] Gộp điểm vào Cửa Chuồng (tổng " + (currentV1 + currentV2) + ")"
-                        : "[>>] Gộp đi " + (currentV1 + currentV2) + " bước");
+                labels.add((currentV1 + currentV2) == toGate ? "[D] Gộp điểm vào Cửa Chuồng (tổng " + (currentV1 + currentV2) + ")" : "[>>] Gộp đi " + (currentV1 + currentV2) + " bước");
             }
 
             if (choices.isEmpty()) return;
@@ -435,10 +420,10 @@ public class GameController {
             consumeDice(chosenSteps);
             checkTurnEnd();
 
-        // --- LEO CHUỒNG ĐÍCH ---
+        // --- LEO CHUỒNG ĐÍCH (Giữ lại luật của Yến) ---
         } else if (clicked.getState() == HorseState.IN_HOME) {
             int cur = clicked.getHomeStep();
-            int nextStep = cur + 1; // Luật Yến: Chỉ được leo 1 bậc kế tiếp
+            int nextStep = cur + 1; 
             
             int v1  = v1Used ? 0 : currentV1;
             int v2  = v2Used ? 0 : currentV2;
@@ -475,20 +460,18 @@ public class GameController {
         }
     }
 
-    // =========================================================================
-    // LOGIC DI CHUYỂN
-    // =========================================================================
     private boolean canMove(Horse h, int steps) {
         int dist = h.getDistanceTraveled();
-        int toGate = 56 - dist;
-        if (steps <= 0 || steps > toGate || dist >= 56) return false;
+        if (dist + steps > 56) return false;
+
         int startPos = h.getCurrentPosition();
         if (startPos == -1) return false;
+
         for (int i = 1; i <= steps; i++) {
             int checkPos = (startPos + i) % 56;
             Horse obs = board.getHorseAt(checkPos);
             if (obs != null) {
-                if (i < steps) return false;
+                if (i < steps) return false; 
                 if (obs.getColor() == h.getColor()) return false;
                 if (board.isSafeCell(checkPos)) return false;
             }
@@ -527,56 +510,79 @@ public class GameController {
 
     private void endTurn() {
         if (gameOver) return;
+
         boolean giveBonus = bonusTurnEarned && !players[currentPlayerIndex].hasWon();
+
         hasRolled = false;
-        v1Used = false; v2Used = false;
+        v1Used = false;
+        v2Used = false;
         bonusTurnEarned = false;
-        highlightedHorses.clear();
         dice.reset();
+        highlightedHorses.clear();
         ui.renderBoard(board, players);
 
         if (giveBonus) {
-            ui.showMessage("[~] LƯỢT THƯỞNG! " + players[currentPlayerIndex].getName()
-                    + " được đổ xúc xắc thêm 1 lần!");
+            ui.showMessage(players[currentPlayerIndex].getName() + " được thưởng thêm 1 lượt!");
             if (isCurrentBot()) scheduleBot();
         } else {
             nextPlayerTurn();
         }
     }
 
+    public void nextPlayerTurn() {
+        if (gameOver) return;
+        int n = players.length;
+        int attempts = 0;
+        do {
+            currentPlayerIndex = (currentPlayerIndex + 1) % n;
+            attempts++;
+        } while (players[currentPlayerIndex].hasWon() && attempts < n);
+
+        if (players[currentPlayerIndex].hasWon()) return;
+
+        hasRolled = false;
+        v1Used = false;
+        v2Used = false;
+
+        String label = isCurrentBot() ? " (Máy)" : " (Mời Đổ...)";
+        ui.showMessage("Đến lượt của người chơi: " + players[currentPlayerIndex].getName() + label);
+        if (isCurrentBot()) scheduleBot();
+    }
+
     private void deployHorse(Horse h, int pos) {
         Horse occ = board.getHorseAt(pos);
+        if (occ != null && occ.getColor() == h.getColor()) return;
+        
         if (occ != null) {
             board.clearPosition(pos);
             occ.sendToBase();
-            ui.showMessage("[!] Đá văng ngựa " + occ.getColor() + " về chuồng!");
+            ui.showMessage("[!] Đá văng quân màu " + occ.getColor() + " về chuồng!");
         }
         h.setCurrentPosition(pos);
         h.setState(HorseState.ON_PATH);
         h.setDistanceTraveled(0);
         board.setHorseAt(pos, h);
-        ui.renderBoard(board, players);
     }
 
     private void moveHorseOnPath(Horse h, int steps) {
         int oldPos = h.getCurrentPosition();
-        int dist   = h.getDistanceTraveled();
-        int toGate = 56 - dist;
+        int dist = h.getDistanceTraveled();
         board.clearPosition(oldPos);
 
-        if (steps == toGate) {
+        if (dist + steps == 56) {
             h.setCurrentPosition(-1);
             h.setDistanceTraveled(56);
-            h.setHomeStep(0);
+            h.setHomeStep(1);
             h.setState(HorseState.IN_HOME);
-            ui.showMessage("[D] Ngựa " + h.getColor() + " vào Cửa Chuồng! Thảy xúc xắc để leo bậc.");
+            ui.showMessage("Quân cờ " + h.getColor() + " đã tiến thẳng vào bậc chuồng 1!");
         } else {
             int newPos = (oldPos + steps) % 56;
             Horse occ = board.getHorseAt(newPos);
+            
             if (occ != null) {
                 board.clearPosition(newPos);
                 occ.sendToBase();
-                ui.showMessage("[!] Đá ngựa " + occ.getColor() + " về chuồng!");
+                ui.showMessage("[!] Đã đá quân đối thủ màu " + occ.getColor() + " về chuồng xuất phát!");
             }
             h.setCurrentPosition(newPos);
             h.setDistanceTraveled(dist + steps);
@@ -614,15 +620,11 @@ public class GameController {
         return false;
     }
 
-    // =========================================================================
-    // KIỂM TRA THẮNG
-    // =========================================================================
     public boolean checkWinCondition() {
         Player current = players[currentPlayerIndex];
 
         if (current.hasWon() && !rankings.contains(current.getName())) {
             rankings.add(current.getName());
-
             int currentRank = rankings.size();
             ui.showPopup("🏆 Chúc mừng người chơi [" + current.getName() + "] đã VỀ ĐÍCH! Đạt Hạng #" + currentRank);
 
@@ -631,13 +633,14 @@ public class GameController {
                 if (p.hasWon()) finishedCount++;
             }
 
-            if (finishedCount >= players.length - 1) { // Tự động xử lý kết thúc game cho tùy chọn số lượng người chơi khác nhau
+            if (finishedCount >= players.length - 1) { 
                 for (Player p : players) {
                     if (!rankings.contains(p.getName())) {
                         rankings.add(p.getName());
                     }
                 }
-
+                
+                botThinking = false;
                 StringBuilder scoreboard = new StringBuilder("🎮 TRẬN ĐẤU KẾT THÚC HOÀN TOÀN! 🎮\n\n");
                 scoreboard.append("🏆 BẢNG XẾP HẠNG CHUNG CUỘC:\n");
                 for (int i = 0; i < rankings.size(); i++) {
@@ -653,24 +656,6 @@ public class GameController {
             }
         }
         return false;
-    }
-    // =========================================================================
-    // CHUYỂN LƯỢT
-    // =========================================================================
-    public void nextPlayerTurn() {
-        if (gameOver) return;
-        int n = players.length;
-        int attempts = 0;
-        do {
-            currentPlayerIndex = (currentPlayerIndex + 1) % n;
-            attempts++;
-        } while (players[currentPlayerIndex].hasWon() && attempts < n);
-
-        if (players[currentPlayerIndex].hasWon()) return; // tất cả đã thắng
-
-        String label = isCurrentBot() ? " (Máy)" : " (Bạn)";
-        ui.showMessage("[o] Lượt của: " + players[currentPlayerIndex].getName() + label);
-        scheduleBot();
     }
 
     // Getters
