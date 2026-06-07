@@ -86,6 +86,8 @@ public class BoardPanel extends JPanel {
                 if (px != -1) {
                     Rectangle hitBox = new Rectangle(px + 2, py + 2, cs - 4, cs - 4);
                     if (hitBox.contains(mouseX, mouseY)) {
+                        // [UC4 - Bước 4.1.2] Người chơi nhấp chọn quân ngựa màu của mình đang đứng ở chuồng (IN_BASE).
+                        // [UC7 - Bước 7.1.1] Người chơi click chọn quân ngựa đang ở vị trí cửa chuồng hoặc đang ở trong chuồng đích để chuẩn bị tiến bậc.
                         controller.handleHorseClick(h);
                         return;
                     }
