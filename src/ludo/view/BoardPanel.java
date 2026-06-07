@@ -45,14 +45,6 @@ public class BoardPanel extends JPanel {
         this.players = players;
         repaint();
     }
-  // Trả về tập màu đang thực sự tham gia game
-    private Set<PlayerColor> getActiveColors() {
-        Set<PlayerColor> active = new HashSet<>();
-        if (players != null) {
-            for (Player p : players) active.add(p.getColor());
-        }
-        return active;
-    }
 
     // Trả về tập màu đang thực sự tham gia game
     private Set<PlayerColor> getActiveColors() {
@@ -86,7 +78,7 @@ public class BoardPanel extends JPanel {
                         px = ox + pathCoords[pos].x * cs;
                         py = oy + pathCoords[pos].y * cs;
                     }
-                } else if (h.getState() == HorseState.IN_HOME ) {
+                } else if (h.getState() == HorseState.IN_HOME) {
                     Point hp = getHomePathCoords(p.getColor(), h.getHomeStep());
                     px = ox + hp.x * cs;
                     py = oy + hp.y * cs;
