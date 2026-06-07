@@ -19,11 +19,11 @@ public class Dice {
     }
 
     /**
+     * [UC2 - Bước 2.1.2] Hệ thống gọi thực thể Dice sinh ngẫu nhiên 2 giá trị xúc xắc từ 1-6.
      * [UC4 - Bước 4.1.0] Người chơi tiến hành gieo xúc xắc và nhận về giá trị xúc xắc.
-     * Sinh ngẫu nhiên hai giá trị V1 và V2 trong khoảng [1..6].
-     * Được gọi bởi GameController.rollDiceRequest().
-     *
      * [UC7 - Bước 7.1.0] Người chơi tiến hành nhấp gieo xúc xắc ra điểm số.
+     * * Sinh ngẫu nhiên hai giá trị V1 và V2 trong khoảng [1..6].
+     * Được gọi bởi GameController.rollDiceRequest().
      *
      * @return int[]{V1, V2} — cặp điểm xúc xắc vừa gieo được
      */
@@ -35,9 +35,9 @@ public class Dice {
     }
 
     /**
-     * [UC4 - Bước 4.1.1] Hệ thống gọi phương thức kiểm tra xúc xắc, xác nhận điểm hợp lệ
-     * cho việc xuất quân.
-     * Điều kiện hợp lệ: Đổ cặp đôi (V1 = V2) hoặc cặp điểm đặc biệt
+     * [UC2 - Bước 2.1.3] Kiểm tra điều kiện xúc xắc đặc biệt (Cặp đôi hoặc 1-6) để thiết lập quyền xuất quân và thưởng lượt.
+     * [UC4 - Bước 4.1.1] Hệ thống gọi phương thức kiểm tra xúc xắc, xác nhận điểm hợp lệ cho việc xuất quân.
+     * * Điều kiện hợp lệ: Đổ cặp đôi (V1 = V2) hoặc cặp điểm đặc biệt
      * (V1 = 1 ∧ V2 = 6) hoặc (V1 = 6 ∧ V2 = 1).
      * Kết quả được dùng bởi GameController.updateHighlightedHorses() để tự động
      * làm nổi bật các quân ngựa đang ở trong chuồng.
@@ -51,14 +51,14 @@ public class Dice {
     }
 
     /**
-     * Kiểm tra xem có đổ được 2 viên giống nhau không
+     * [UC2 - Bước 2.1.3] Kiểm tra xem có đổ được 2 viên giống nhau (Cặp đôi/Bão) không.
      */
     public boolean isDouble() {
         return value1 == value2;
     }
 
     /**
-     * Kiểm tra xem có phải cặp 1 và 6 không
+     * [UC2 - Bước 2.1.3] Kiểm tra xem có phải cặp đặc biệt 1 và 6 không.
      */
     private boolean isOneSix() {
         return (value1 == 1 && value2 == 6) || (value1 == 6 && value2 == 1);
@@ -85,7 +85,7 @@ public class Dice {
     }
 
     /**
-     * Reset trạng thái xúc xắc sau mỗi lượt đi
+     * Reset trạng thái xúc xắc sau mỗi lượt đi để chuẩn bị cho lượt tiếp theo.
      */
     public void reset() {
         this.rolled = false;
