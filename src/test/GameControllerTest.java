@@ -753,4 +753,179 @@ class GameControllerTest {
                     "Điểm tổng kết vượt quá độ dài bản đồ (55) -> false");
         }
     }
+
+    // =========================================================================
+    // E. UC4 — Xuất quân
+    // =========================================================================
+    @Nested
+    @DisplayName("E. UC4 - Xuất quân")
+    class UC4_Tests {
+
+        @Test
+        @DisplayName("TC-01 – Kiểm tra xuất quân thất bại khi điểm số không hợp lệ")
+        void TC01_DeployFailsWhenInvalidDice() throws Exception {
+            // Điều kiện tiên quyết: Quân ngựa mục tiêu hiện đang ở trong chuồng (IN_BASE). Đến lượt đi của người chơi.
+            GameController gc = buildController("2p");
+            FakeGameUI fakeUI = new FakeGameUI(gc);
+            gc.setUI(fakeUI);
+
+            Player currentP = ((Player[]) getField(gc, "players"))[0];
+            Horse targetHorse = currentP.getHorses()[0]; // Đang ở IN_BASE
+
+            // Dữ liệu đầu vào: Cặp điểm xúc xắc nhận được là 2 và 3.
+            setField(gc, "currentV1", 2);
+            setField(gc, "currentV2", 3);
+            setField(gc, "hasRolled", true);
+            setField(gc, "v1Used", false);
+            setField(gc, "v2Used", false);
+            
+            // Hàm Dice.isDeployable() trả về false -> bonusTurnEarned = false
+            setField(gc, "bonusTurnEarned", false); 
+            
+            // Bước 1: Người chơi thực hiện nhấp gieo xúc xắc (gọi updateHighlightedHorses)
+            callMethod(gc, "updateHighlightedHorses", new Class[]{});
+            
+            // Kết quả mong đợi: Hệ thống không kích hoạt highlight quân ngựa trong chuồng.
+            @SuppressWarnings("unchecked")
+            List<Horse> highlighted = (List<Horse>) getField(gc, "highlightedHorses");
+            assertFalse(highlighted.contains(targetHorse), "Hệ thống không được highlight quân ngựa trong chuồng khi điểm không hợp lệ");
+
+            // Bước 2: Người chơi cố tình nhấp chuột chọn quân ngựa đang đứng trong chuồng.
+            // Lệnh sẽ bị handleHorseClick từ chối vì quân chưa được highlight.
+            gc.handleHorseClick(targetHorse);
+
+            // Kết quả mong đợi: Từ chối xử lý di chuyển, giữ nguyên IN_BASE
+            assertEquals(HorseState.IN_BASE, targetHorse.getState(), "Quân ngựa phải giữ nguyên trạng thái IN_BASE");
+            
+            // Bước 3: Quan sát thông báo (updateHighlightedHorses sẽ tự chuyển lượt & cảnh báo nếu không còn nước)
+            assertTrue(fakeUI.messages.stream().anyMatch(m -> m.contains("Không có nước đi hợp lệ")), "Phải hiển thị cảnh báo không hợp lệ hoặc tự động chuyển lượt");
+        }
+
+        @Test
+        @DisplayName("TC-02 – Kiểm tra xuất quân thành công")
+        void TC02_DeploySuccess() throws Exception {
+            // Điều kiện tiên quyết: Quân ngựa mục tiêu ở IN_BASE, ô xuất phát trống.
+            GameController gc = buildController("2p");
+            FakeGameUI fakeUI = new FakeGameUI(gc);
+            gc.setUI(fakeUI);
+
+            Player currentP = ((Player[]) getField(gc, "players"))[0];
+            Horse targetHorse = currentP.getHorses()[0];
+
+            // Dữ liệu đầu vào: Cặp điểm xúc xắc nhận được là 4 và 4.
+            setField(gc, "currentV1", 4);
+            setField(gc, "currentV2", 4);
+            setField(gc, "hasRolled", true);
+            setField(gc, "v1Used", false);
+            setField(gc, "v2Used", false);
+            setField(gc, "bonusTurnEarned", true); // Dice.isDeployable() = true
+            
+            // Bước 1: Người chơi gieo xúc xắc
+            callMethod(gc, "updateHighlightedHorses", new Class[]{});
+            
+            // Kết quả mong đợi: Hệ thống làm nổi bật quân ngựa trong chuồng.
+            @SuppressWarnings("unchecked")
+            List<Horse> highlighted = (List<Horse>) getField(gc, "highlightedHorses");
+            assertTrue(highlighted.contains(targetHorse), "Quân ngựa trong chuồng phải được làm nổi bật");
+
+            // Bước 2: Người chơi nhấp chọn quân ngựa màu của mình
+            gc.handleHorseClick(targetHorse);
+
+            // Kết quả mong đợi: Đặt quân ngựa vào vị trí xuất phát, trạng thái ON_PATH, quãng đường = 0
+            assertEquals(HorseState.ON_PATH, targetHorse.getState(), "Trạng thái chuyển sang ON_PATH");
+            assertEquals(0, targetHorse.getDistanceTraveled(), "Quãng đường bằng 0");
+            
+            Board board = (Board) getField(gc, "board");
+            int startPos = board.getStartPosition(currentP.getColor());
+            assertEquals(startPos, targetHorse.getCurrentPosition(), "Quân ngựa phải ở chính xác ô xuất phát");
+
+            // Bước 3: Kiểm tra thông báo thưởng thêm lượt
+            assertTrue(fakeUI.messages.stream().anyMatch(m -> m.contains("được thưởng thêm 1 lượt!")), "Hệ thống báo thưởng thêm lượt");
+        }
+
+        @Test
+        @DisplayName("TC-03 – Kiểm tra xuất quân có đá ngựa đối phương tại ô xuất phát")
+        void TC03_DeployWithKick() throws Exception {
+            // Điều kiện tiên quyết: Có quân ngựa Xanh dương (đối phương) đang chiếm giữ ô xuất phát của Đỏ.
+            GameController gc = buildController("2p"); // Giả sử player 0 là Đỏ, player 1 là Lục/Xanh
+            FakeGameUI fakeUI = new FakeGameUI(gc);
+            gc.setUI(fakeUI);
+
+            Player pRed = ((Player[]) getField(gc, "players"))[0];
+            Player pOpponent = ((Player[]) getField(gc, "players"))[1];
+            Horse redHorse = pRed.getHorses()[0];
+            Horse opponentHorse = pOpponent.getHorses()[0];
+
+            Board board = (Board) getField(gc, "board");
+            int startPosRed = board.getStartPosition(pRed.getColor());
+
+            // Thiết lập quân đối phương tại ô xuất phát
+            opponentHorse.setState(HorseState.ON_PATH);
+            opponentHorse.setCurrentPosition(startPosRed);
+            board.setHorseAt(startPosRed, opponentHorse);
+
+            // Dữ liệu đầu vào: Người chơi Đỏ gieo được 1 và 6.
+            setField(gc, "currentV1", 1);
+            setField(gc, "currentV2", 6);
+            setField(gc, "hasRolled", true);
+            setField(gc, "v1Used", false);
+            setField(gc, "v2Used", false);
+            setField(gc, "bonusTurnEarned", true);
+
+            // Bước 1: Gieo xúc xắc và click chọn
+            callMethod(gc, "updateHighlightedHorses", new Class[]{});
+            gc.handleHorseClick(redHorse);
+
+            // Bước 2: Kiểm tra va chạm
+            // Kết quả mong đợi: Ngựa đối phương bị đẩy về chuồng (IN_BASE).
+            assertEquals(HorseState.IN_BASE, opponentHorse.getState(), "Ngựa đối phương bị đẩy bay trở lại chuồng");
+            assertEquals(-1, opponentHorse.getCurrentPosition(), "Xóa vị trí cũ của ngựa đối phương");
+
+            // Bước 3: Kiểm tra vị trí quân Đỏ và hiệu ứng thông báo
+            assertEquals(HorseState.ON_PATH, redHorse.getState(), "Ngựa Đỏ xuất quân");
+            assertEquals(startPosRed, redHorse.getCurrentPosition(), "Ngựa Đỏ thế chỗ an toàn tại ô xuất phát");
+            assertTrue(fakeUI.messages.stream().anyMatch(m -> m.contains("Đá văng quân")), "Hiển thị thông báo đá ngựa đối phương");
+        }
+
+        
+        @Test
+        @DisplayName("TC-04 – Kiểm tra xuất quân bị chặn bởi quân mình")
+        void TC04_DeployBlockedBySelf() throws Exception {
+            // Điều kiện tiên quyết: Ô xuất phát bị chiếm đóng bởi một quân cờ cùng màu Đỏ.
+            GameController gc = buildController("2p");
+            FakeGameUI fakeUI = new FakeGameUI(gc);
+            gc.setUI(fakeUI);
+
+            Player pRed = ((Player[]) getField(gc, "players"))[0];
+            Horse redHorse1 = pRed.getHorses()[0]; // Muốn xuất
+            Horse redHorse2 = pRed.getHorses()[1]; // Đang chặn
+
+            Board board = (Board) getField(gc, "board");
+            int startPosRed = board.getStartPosition(pRed.getColor());
+
+            // Đặt redHorse2 chặn cửa
+            redHorse2.setState(HorseState.ON_PATH);
+            redHorse2.setCurrentPosition(startPosRed);
+            board.setHorseAt(startPosRed, redHorse2);
+
+            // Dữ liệu đầu vào: Cặp điểm gieo được là 5 và 5.
+            setField(gc, "currentV1", 5);
+            setField(gc, "currentV2", 5);
+            setField(gc, "hasRolled", true);
+            setField(gc, "v1Used", false);
+            setField(gc, "v2Used", false);
+            setField(gc, "bonusTurnEarned", true);
+
+            // Highlight (thực tế redHorse1 không được highlight vì bị chặn)
+            callMethod(gc, "updateHighlightedHorses", new Class[]{});
+            
+            // Bước 2: Nhấp chuột thử chọn quân ngựa
+            gc.handleHorseClick(redHorse1);
+
+            // Bước 3: Kết quả mong đợi: Hủy bỏ luồng, giữ nguyên trong chuồng
+            assertEquals(HorseState.IN_BASE, redHorse1.getState(), "Quân ngựa phải được giữ nguyên trong chuồng, không đổi vị trí");
+        }
+    }
+
+    
 }
