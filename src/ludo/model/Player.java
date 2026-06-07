@@ -17,7 +17,7 @@ public class Player {
         }
     }
 
-    /** Thắng khi TẤT CẢ 4 ngựa đều FINISHED */
+    /** Thắng khi TẤT CẢ 4 ngựa đều FINISHED (đứng ở ô cao nhất có thể trong chuồng đích) */
     public boolean hasWon() {
         for (Horse h : horses) {
             if (h.getState() != HorseState.FINISHED) return false;

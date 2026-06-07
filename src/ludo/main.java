@@ -6,14 +6,12 @@ import javax.swing.SwingUtilities;
 
 public class main {
     public static void main(String[] args) {
-        // Đảm bảo UI chạy trên Event Dispatch Thread của Swing
         SwingUtilities.invokeLater(() -> {
             GameController controller = new GameController();
             GameUI ui = new GameUI(controller);
             ui.setVisible(true);
-            
-            // Bắt đầu game
-            controller.startGame();
+            // startGame() không còn dùng — GameUI tự hỏi số người chơi
+            // rồi gọi controller.startNewGame(playerCount)
         });
     }
 }
