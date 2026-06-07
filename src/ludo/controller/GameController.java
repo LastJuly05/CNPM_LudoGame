@@ -344,23 +344,27 @@ public class GameController {
         return 0;
     }
 
-    /**
-     * [UC4 - Bước 4.1.0] Người chơi tiến hành gieo xúc xắc và nhận về giá trị xúc xắc hợp lệ cho việc xuất quân: Đổ cặp đôi (V1 = V2) hoặc cặp điểm đặc biệt (V1 = 1 ∧ V2 = 6) hoặc (V1 = 6 ∧ V2 = 1).
-     * [UC7 - Bước 7.1.0] Người chơi tiến hành nhấp gieo xúc xắc ra điểm số.
-     */
+    // =========================================================================
+    // ĐỔ XÚC XẮC (người chơi) - UC2
+    // =========================================================================
     public void rollDiceRequest() {
+        // [UC2 - Bước 2.1.1] Hệ thống tiếp nhận yêu cầu gieo xúc xắc, kiểm tra tính hợp lệ của lượt chơi (chưa gieo, không phải bot).
         if (gameOver) return;
         if (isCurrentBot()) { ui.showMessage("Đang là lượt máy!"); return; }
         if (hasRolled) { ui.showMessage("Bạn đã đổ rồi! Hãy bấm chọn quân cờ để di chuyển."); return; }
 
+        // [UC2 - Bước 2.1.2] Hệ thống gọi thực thể Dice sinh ngẫu nhiên 2 giá trị xúc xắc từ 1-6.
         int[] result = dice.roll();
         currentV1 = result[0];
         currentV2 = result[1];
         hasRolled = true;
         v1Used = false;
         v2Used = false;
+        
+        // [UC2 - Bước 2.1.3] Kiểm tra điều kiện xúc xắc đặc biệt (Cặp đôi hoặc 1-6) để thiết lập quyền xuất quân và thưởng lượt.
         bonusTurnEarned = dice.isDeployable();
 
+        // [UC2 - Bước 2.1.4] Hệ thống gửi dữ liệu điểm số cập nhật lên giao diện và hiển thị thông báo kết quả.
         ui.updateDiceDisplay(currentV1, currentV2);
         
         if (bonusTurnEarned) {
@@ -371,12 +375,13 @@ public class GameController {
                     + " đổ được: [" + currentV1 + "] + [" + currentV2 + "]");
         }
 
+        // [UC2 - Bước 2.1.5] Gọi hàm đánh giá và làm nổi bật các quân cờ hợp lệ để người chơi lựa chọn.
         updateHighlightedHorses();
     }
 
-    /**
-     * [UC4 - Bước 4.1.1] Hệ thống gọi phương thức kiểm tra xúc xắc, xác nhận điểm hợp lệ và tự động làm nổi bật các quân ngựa đang ở trong chuồng.
-     */
+    // =========================================================================
+    // HIGHLIGHT (chỉ dùng cho người chơi)
+    // =========================================================================
     private void updateHighlightedHorses() {
         highlightedHorses.clear();
         if (!hasRolled || gameOver) {
@@ -432,7 +437,7 @@ public class GameController {
     }
 
     // =========================================================================
-    // CLICK NGỰA (người chơi)
+    // CLICK NGỰA (người chơi) - Xử lý chuyển hướng các Use Case
     // =========================================================================
     public void handleHorseClick(Horse clicked) {
         if (gameOver || isCurrentBot()) return;
@@ -460,14 +465,16 @@ public class GameController {
             // [UC4 - Bước 4.1.6] Hệ thống đánh dấu đã tiêu thụ điểm xúc xắc và kiểm tra chuyển lượt.
             checkTurnEnd();
 
-        // --- ĐI TRÊN ĐƯỜNG (Giữ lại Pop-up chọn của Phát) ---
+        // --- ĐI TRÊN ĐƯỜNG (UC5) ---
         } else if (clicked.getState() == HorseState.ON_PATH) {
+            // [UC5 - Bước 5.1.1] Hệ thống tiếp nhận sự kiện click vào ngựa đang trên đường, tính toán quãng đường còn lại đến cửa chuồng.
             int dist = clicked.getDistanceTraveled();
             int toGate = 56 - dist;
 
             List<Integer> choices = new ArrayList<>();
             List<String> labels = new ArrayList<>();
 
+            // [UC5 - Bước 5.1.2] Hệ thống phân tích các tùy chọn di chuyển (đi viên 1, viên 2 hoặc gộp) thông qua hàm quét vật cản canMove().
             boolean canV1 = !v1Used && canMove(clicked, currentV1);
             boolean canV2 = !v2Used && canMove(clicked, currentV2);
             boolean canSum = !v1Used && !v2Used && canMove(clicked, currentV1 + currentV2);
@@ -494,6 +501,8 @@ public class GameController {
             if (choices.isEmpty()) return;
             
             int chosenSteps = choices.get(0);
+            
+            // [UC5 - Bước 5.1.3] Nếu có nhiều hơn 1 tùy chọn hợp lệ, hệ thống bật Pop-up yêu cầu người chơi chọn nước đi.
             if (choices.size() > 1) {
                 String[] arr = labels.toArray(new String[0]);
                 int idx = JOptionPane.showOptionDialog(ui, "Bạn muốn dùng điểm nào?", "Chọn Nước Đi",
@@ -502,11 +511,14 @@ public class GameController {
                 chosenSteps = choices.get(idx);
             }
 
+            // [UC5 - Bước 5.1.4] Hệ thống truyền số bước đã chọn vào hàm thực thi di chuyển và đánh dấu xúc xắc đã tiêu thụ.
             moveHorseOnPath(clicked, chosenSteps);
             consumeDice(chosenSteps);
+            
+            // [UC5 - Bước 5.1.9] Gọi hàm kiểm tra kết thúc lượt chơi sau khi hoàn tất di chuyển.
             checkTurnEnd();
 
-        // --- LEO CHUỒNG ĐÍCH (Giữ lại luật của Yến) ---
+        // --- LEO CHUỒNG ĐÍCH (UC7) ---
         } else if (clicked.getState() == HorseState.IN_HOME) {
             // [UC7 - Bước 7.1.2] Hệ thống xác định chỉ số bậc mục tiêu tiếp theo dựa trên quy tắc tịnh tiến: targetStep = currentStep + 1.
             int cur = clicked.getHomeStep();
@@ -559,11 +571,14 @@ public class GameController {
     private boolean canMove(Horse h, int steps) {
         int dist = h.getDistanceTraveled();
         int toGate = 56 - dist;
+        
+        // [UC5 - Ngoại lệ 5.2.1] Hệ thống kiểm tra xem nếu đi số bước này có bị lố cửa chuồng đích hay không.
         if (steps <= 0 || steps > toGate || dist >= 56) return false;
         
         int startPos = h.getCurrentPosition();
         if (startPos == -1) return false;
 
+        // [UC5 - Ngoại lệ 5.2.2] Thuật toán quét tuần tự các ô trên lộ trình di chuyển. Nếu có vật cản trước khi đến đích, báo nước đi không hợp lệ.
         for (int i = 1; i <= steps; i++) {
             int checkPos = (startPos + i) % 56;
             Horse obs = board.getHorseAt(checkPos);
@@ -681,6 +696,7 @@ public class GameController {
     }
 
     private void moveHorseOnPath(Horse h, int steps) {
+        // [UC5 - Bước 5.1.5] Hệ thống lấy vị trí hiện tại, tính toán vị trí đích mới dựa trên vòng lặp 56 ô và xóa quân ngựa khỏi vị trí cũ.
         int oldPos = h.getCurrentPosition();
         int dist = h.getDistanceTraveled();
         int toGate = 56 - dist;
@@ -696,15 +712,19 @@ public class GameController {
             int newPos = (oldPos + steps) % 56;
             Horse occ = board.getHorseAt(newPos);
             
+            // [UC5 - Bước 5.1.6] Hệ thống kiểm tra ô đích. Nếu có quân ngựa đối phương (không phải SafeCell), thực hiện lệnh đá văng đối phương về chuồng (sendToBase).
             if (occ != null) {
                 board.clearPosition(newPos);
                 occ.sendToBase();
                 ui.showMessage("[!] Đã đá quân đối thủ màu " + occ.getColor() + " về chuồng xuất phát!");
             }
+            
+            // [UC5 - Bước 5.1.7] Cập nhật tọa độ mới, cộng dồn quãng đường và đặt ngựa vào mảng bàn cờ.
             h.setCurrentPosition(newPos);
             h.setDistanceTraveled(dist + steps);
             board.setHorseAt(newPos, h);
         }
+        // [UC5 - Bước 5.1.8] Cập nhật giao diện đồ họa thể hiện sự di chuyển.
         ui.renderBoard(board, players);
     }
 
